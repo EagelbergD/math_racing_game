@@ -30,10 +30,14 @@ class PreloadScene extends Phaser.Scene {
     this.load.image('enemyCar2', 'assets/racing/PNG/Cars/car_yellow_1.png');
     this.load.image('enemyCar3', 'assets/racing/PNG/Cars/car_green_1.png');
     
-    // Road tiles - using straight road pieces
-    this.load.image('roadTile', 'assets/racing/PNG/Tiles/Asphalt road/road_asphalt01.png');
-    this.load.image('roadLine', 'assets/racing/PNG/Tiles/Asphalt road/road_asphalt22.png');
-    this.load.image('grassTile', 'assets/racing/PNG/Tiles/Grass/land_grass01.png');
+    // Road tiles - using proper asphalt tiles
+    this.load.image('roadTile', 'assets/racing/PNG/Tiles/Asphalt road/road_asphalt22.png'); // Clean asphalt
+    this.load.image('leftBarrierTile', 'assets/racing/PNG/Tiles/Asphalt road/road_asphalt21.png'); // Red/white left
+    this.load.image('rightBarrierTile', 'assets/racing/PNG/Tiles/Asphalt road/road_asphalt23.png'); // Red/white right
+    this.load.image('grassTile', 'assets/racing/PNG/Tiles/Grass/land_grass04.png');
+    
+    // White arrows for lane dividers
+    this.load.image('laneArrow', 'assets/racing/PNG/Objects/arrow_white.png');
     
     // Static racing background for menu
     this.load.image('racingBg', 'assets/racing/Sample.png');
@@ -283,22 +287,18 @@ class GameScene extends Phaser.Scene {
     const speedMap = { 1: 150, 2: 200, 3: 250 };
     this.gameSpeed = speedMap[this.selectedSpeed];
     
-    // Define 3 lanes for the racing track
-    this.lanes = [
-      this.scale.width * 0.3,
-      this.scale.width * 0.5,
-      this.scale.width * 0.7
-    ];
+    // Current lane (will be positioned correctly after road creation)
     this.currentLane = 1;
     
-    // Create scrolling road background - DISABLED FOR DEBUGGING
-    // this.createRoadBackground();
+    // Create scrolling road background (this will set up lanes)
+    this.createRoadBackground();
     
-    // Player car (now at bottom, moving up/down between lanes)
+    // Player car (positioned after road background creation)
     this.player = this.physics.add.sprite(this.lanes[this.currentLane], this.scale.height - 100, 'playerCar');
     this.player.setScale(1.2);
     this.player.body.allowGravity = false;
     this.player.setImmovable(true);
+    this.player.setDepth(10); // Higher depth to ensure visibility
     
     // Add car engine sound effect (visual feedback)
     this.createEngineEffect();
@@ -321,40 +321,66 @@ class GameScene extends Phaser.Scene {
     this.isPaused = false;
     this.pauseMenu = null;
     
-
-    
     // Start first question
     this.nextQuestion();
     
-    // Add speed increase over time
-    this.speedTimer = this.time.addEvent({
-      delay: 10000,
-      callback: this.increaseSpeed,
-      callbackScope: this,
-      loop: true
-    });
+    // Auto-speed increase disabled - speed stays constant based on menu selection
+    // this.speedTimer = this.time.addEvent({
+    //   delay: 10000,
+    //   callback: this.increaseSpeed,
+    //   callbackScope: this,
+    //   loop: true
+    // });
   }
   
   createRoadBackground() {
-    // Create grass background on sides
+    // Create grass background on sides (use a cleaner grass tile)
     this.grassBg = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'grassTile');
     this.grassBg.setOrigin(0, 0);
     this.grassBg.setDepth(-3);
     
-    // Create road in the center
-    const roadWidth = this.scale.width * 0.6;
+    // Create road in the center (fixed width for consistent lane positioning)
+    const roadWidth = Math.min(600, this.scale.width * 0.5); // Max 600px wide or 50% of screen
     const roadX = (this.scale.width - roadWidth) / 2;
     this.roadBg = this.add.tileSprite(roadX, 0, roadWidth, this.scale.height, 'roadTile');
     this.roadBg.setOrigin(0, 0);
     this.roadBg.setDepth(-2);
     
-    // Add lane dividers
-    for (let i = 1; i < 3; i++) {
-      const lineX = roadX + (roadWidth * i / 3);
-      const line = this.add.tileSprite(lineX, 0, 4, this.scale.height, 'roadLine');
-      line.setOrigin(0.5, 0);
-      line.setDepth(-1);
-    }
+    // Add red-white barriers ONLY on the outer edges of the road
+    const barrierWidth = 25; // Increased width to make it more visible
+    
+    // Left outer barrier (left edge of road)
+    this.leftBarrier = this.add.tileSprite(roadX - barrierWidth, 0, barrierWidth, this.scale.height, 'leftBarrierTile');
+    this.leftBarrier.setOrigin(0, 0);
+    this.leftBarrier.setDepth(-1);
+    
+    // Right outer barrier (right edge of road) - use left barrier flipped horizontally
+    const rightBarrierX = roadX + roadWidth;
+    this.rightBarrier = this.add.tileSprite(rightBarrierX, 0, barrierWidth, this.scale.height, 'leftBarrierTile');
+    this.rightBarrier.setOrigin(0, 0);
+    this.rightBarrier.setDepth(-1);
+    this.rightBarrier.setFlipX(true); // Flip horizontally to mirror the left barrier
+    
+    // Calculate lanes to fit within the road area
+    const laneWidth = roadWidth / 3;
+    this.lanes = [
+      roadX + laneWidth * 0.5,  // Center of first lane
+      roadX + laneWidth * 1.5,  // Center of second lane
+      roadX + laneWidth * 2.5   // Center of third lane
+    ];
+    
+    // Add white dashed lines between the 3 lanes using white arrows
+    // First lane divider (between lane 1 and 2)
+    const line1X = roadX + laneWidth;
+    this.laneLine1 = this.add.tileSprite(line1X - 2, 0, 4, this.scale.height, 'laneArrow');
+    this.laneLine1.setOrigin(0, 0);
+    this.laneLine1.setDepth(-1);
+    
+    // Second lane divider (between lane 2 and 3)
+    const line2X = roadX + (laneWidth * 2);
+    this.laneLine2 = this.add.tileSprite(line2X - 2, 0, 4, this.scale.height, 'laneArrow');
+    this.laneLine2.setOrigin(0, 0);
+    this.laneLine2.setDepth(-1);
   }
   
   createEngineEffect() {
@@ -422,11 +448,11 @@ class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(1, 0).setDepth(11);
     
-    // Debug text
-    this.debugText = this.add.text(this.scale.width - 30, 90, 'Debug: No cars', {
+    // Instructions text
+    this.instructionsText = this.add.text(this.scale.width - 30, 90, 'Use ← → to change lanes', {
       fontSize: '16px',
-      color: '#ffffff',
-      fontStyle: 'bold'
+      color: '#bdc3c7',
+      fontStyle: 'italic'
     }).setOrigin(1, 0).setDepth(11);
   }
   
@@ -465,30 +491,23 @@ class GameScene extends Phaser.Scene {
     // Properly clean up both cars and their text
     this.obstacleCars.children.entries.forEach(car => {
       if (car.answerText && car.answerText.active) {
-        console.log('Destroying text:', car.answerText.text);
         car.answerText.destroy();
       }
     });
     
     // Clear the cars group
     this.obstacleCars.clear(true, true);
-    console.log('All cars and text cleared');
   }
   
   nextQuestion() {
-    console.log('=== NEXT QUESTION CALLED ===');
-    
     // Clear previous obstacle cars
     this.clearAllCars();
-    console.log('Cleared previous cars');
     
     // Generate multiplication question
     const a = Phaser.Math.Between(1, this.maxMult);
     const b = Phaser.Math.Between(1, this.maxMult);
     this.correct = a * b;
     this.questionText.setText(`${a} × ${b} = ?`);
-    
-    console.log(`Generated question: ${a} × ${b} = ${this.correct}`);
     
     // Add question pulse effect
     this.tweens.add({
@@ -514,85 +533,49 @@ class GameScene extends Phaser.Scene {
     const options = Phaser.Utils.Array.Shuffle([this.correct, ...wrongs]);
     const carSprites = ['enemyCar1', 'enemyCar2', 'enemyCar3'];
     
-         // DEBUG: Log what we're creating
-     console.log('Creating cars with answers:', options);
-     console.log('Correct answer is:', this.correct);
-     
-     options.forEach((answer, idx) => {
-       const x = this.lanes[idx];
-       const y = 100; // Start cars in visible area for now
-       
-       console.log(`Creating car ${idx} at (${x}, ${y}) with answer: ${answer}`);
-       console.log(`Screen dimensions: ${this.scale.width} x ${this.scale.height}`);
-       
-       // Create obstacle car
-       const car = this.physics.add.sprite(x, y, carSprites[idx]);
-       car.setScale(1.1);
-       car.body.setVelocityY(this.gameSpeed);
-       car.body.allowGravity = false;
-       car.correct = (answer === this.correct);
-       car.setDepth(5);
-       
-       console.log(`Car ${idx} velocity set to: ${car.body.velocity.y}`);
-       
-       console.log(`Car ${idx} created, now adding text...`);
-       
-       // Create text at car position (but make it visible by starting it lower)
-       const startY = 100; // Start text in visible area instead of -100
-       
-       // Determine background color based on car sprite
-       let bgColor = '#666666'; // Default gray
-       if (carSprites[idx] === 'enemyCar1') bgColor = '#8B0000'; // Dark red for red car
-       else if (carSprites[idx] === 'enemyCar2') bgColor = '#B8860B'; // Dark yellow for yellow car  
-       else if (carSprites[idx] === 'enemyCar3') bgColor = '#006400'; // Dark green for green car
-       
-       const answerText = this.add.text(x, startY, `${answer}`, {
-         fontSize: '32px',
-         color: '#ffffff',
-         fontStyle: 'bold',
-         backgroundColor: bgColor,
-         padding: { x: 12, y: 8 },
-         stroke: '#000000',
-         strokeThickness: 4
-       }).setOrigin(0.5);
-       answerText.setDepth(100); // Very high depth to ensure visibility
-       answerText.setVisible(true); // Explicitly set visible
-       answerText.setActive(true); // Explicitly set active
-       
-       // Force add to display list if not already there
-       if (!this.children.exists(answerText)) {
-         this.children.add(answerText);
-       }
-       
-       console.log(`Text created for car ${idx} at (${x}, ${startY}):`, answerText);
-       console.log(`Text visible: ${answerText.visible}, active: ${answerText.active}`);
-       console.log(`Text in display list: ${this.children.exists(answerText)}`);
-       console.log(`Text position: (${answerText.x}, ${answerText.y}), size: ${answerText.width}x${answerText.height}`);
-       
-       // Make text follow the car
-       car.answerText = answerText;
-       
-       this.obstacleCars.add(car);
-       
-       console.log(`Car ${idx} added to group. Total cars:`, this.obstacleCars.children.entries.length);
-       
-       // Cars will be removed when they go off screen or when collision happens
-       // No automatic timer cleanup needed
-     });
+    options.forEach((answer, idx) => {
+      const x = this.lanes[idx];
+      const y = 200; // Start cars at visible position
+      
+      // Create obstacle car (using regular sprite, not physics)
+      const car = this.add.sprite(x, y, carSprites[idx]);
+      car.setScale(1.1);
+      car.correct = (answer === this.correct);
+      car.setDepth(50); // Much higher depth to ensure visibility
+      
+      console.log(`Car ${idx} created at position (${x}, ${y}), will move manually`);
+      console.log(`gameSpeed: ${this.gameSpeed}, movement per frame: ${this.gameSpeed / 60}`);
+      
+      // Determine background color based on car sprite
+      let bgColor = '#666666'; // Default gray
+      if (carSprites[idx] === 'enemyCar1') bgColor = '#8B0000'; // Dark red for red car
+      else if (carSprites[idx] === 'enemyCar2') bgColor = '#B8860B'; // Dark yellow for yellow car  
+      else if (carSprites[idx] === 'enemyCar3') bgColor = '#006400'; // Dark green for green car
+      
+      const answerText = this.add.text(x, y, `${answer}`, {
+        fontSize: '32px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        backgroundColor: bgColor,
+        padding: { x: 12, y: 8 },
+        stroke: '#000000',
+        strokeThickness: 4
+      }).setOrigin(0.5);
+      answerText.setDepth(100); // Very high depth for text visibility
+      
+      // Make text follow the car
+      car.answerText = answerText;
+      
+      this.obstacleCars.add(car);
+    });
   }
   
   handleCollision(player, car) {
-    console.log('=== COLLISION DETECTED ===');
-    console.log('Player position:', player.x, player.y);
-    console.log('Car position:', car.x, car.y);
-    console.log('Car answer:', car.answerText ? car.answerText.text : 'NO TEXT');
-    
     const wasCorrect = car.correct;
     const carX = car.x;
     const carY = car.y;
 
     // Clear all existing obstacle cars immediately
-    console.log('Clearing all obstacle cars...');
     this.clearAllCars();
     
     // Car crash effect
@@ -603,8 +586,13 @@ class GameScene extends Phaser.Scene {
       this.score += 10 * this.maxMult;
       this.scoreText.setText(`🏆 Score: ${this.score}`);
       
-      // Success effect
-      this.cameras.main.flash(200, 0, 255, 0);
+      // Clear positive success effect - green screen flash
+      this.cameras.main.flash(300, 0, 255, 0, false);
+      
+      // Show big success feedback
+      this.showSuccessFeedback();
+      
+      // Success particles
       this.createSuccessEffect();
     } else {
       // Wrong answer
@@ -615,6 +603,9 @@ class GameScene extends Phaser.Scene {
       this.cameras.main.shake(200, 0.02);
       this.cameras.main.flash(200, 255, 0, 0);
       
+      // Show wrong answer feedback
+      this.showWrongFeedback();
+      
       if (this.lives <= 0) {
         this.gameOver();
         return;
@@ -622,7 +613,7 @@ class GameScene extends Phaser.Scene {
     }
     
     // Spawn next question after a short delay
-    this.time.delayedCall(500, () => {
+    this.time.delayedCall(1000, () => {
       this.nextQuestion();
     });
   }
@@ -643,17 +634,158 @@ class GameScene extends Phaser.Scene {
   }
   
   createSuccessEffect() {
-    // Success particles
+    // Success particles - golden stars
     const particles = this.add.particles(this.player.x, this.player.y, 'cone', {
-      scale: { start: 0.2, end: 0 },
+      scale: { start: 0.3, end: 0 },
       speed: { min: 50, max: 150 },
-      lifespan: 800,
-      quantity: 15,
-      tint: 0x00ff00
+      lifespan: 1000,
+      quantity: 20,
+      tint: 0xffd700, // Golden color
+      alpha: { start: 1, end: 0 }
     });
     
-    this.time.delayedCall(800, () => {
+    this.time.delayedCall(1000, () => {
       particles.destroy();
+    });
+  }
+  
+  showSuccessFeedback() {
+    // Big green checkmark
+    const checkmark = this.add.text(this.scale.width/2, this.scale.height/2 - 50, '✓', {
+      fontSize: '120px',
+      color: '#00ff00',
+      fontStyle: 'bold',
+      stroke: '#ffffff',
+      strokeThickness: 6,
+      shadow: {
+        offsetX: 4,
+        offsetY: 4,
+        color: '#000000',
+        blur: 8,
+        fill: true
+      }
+    }).setOrigin(0.5).setDepth(200);
+    
+    // "CORRECT!" text
+    const correctText = this.add.text(this.scale.width/2, this.scale.height/2 + 50, 'CORRECT!', {
+      fontSize: '48px',
+      color: '#00ff00',
+      fontStyle: 'bold',
+      stroke: '#ffffff',
+      strokeThickness: 4,
+      shadow: {
+        offsetX: 3,
+        offsetY: 3,
+        color: '#000000',
+        blur: 6,
+        fill: true
+      }
+    }).setOrigin(0.5).setDepth(200);
+    
+    // Animate checkmark - pop in effect
+    checkmark.setScale(0);
+    this.tweens.add({
+      targets: checkmark,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: checkmark,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 200,
+          ease: 'Power2'
+        });
+      }
+    });
+    
+    // Animate text - slide up
+    correctText.setAlpha(0);
+    correctText.y += 30;
+    this.tweens.add({
+      targets: correctText,
+      y: correctText.y - 30,
+      alpha: 1,
+      duration: 400,
+      ease: 'Power2'
+    });
+    
+    // Remove after delay
+    this.time.delayedCall(800, () => {
+      checkmark.destroy();
+      correctText.destroy();
+    });
+  }
+  
+  showWrongFeedback() {
+    // Big red X
+    const xmark = this.add.text(this.scale.width/2, this.scale.height/2 - 50, '✗', {
+      fontSize: '120px',
+      color: '#ff0000',
+      fontStyle: 'bold',
+      stroke: '#ffffff',
+      strokeThickness: 6,
+      shadow: {
+        offsetX: 4,
+        offsetY: 4,
+        color: '#000000',
+        blur: 8,
+        fill: true
+      }
+    }).setOrigin(0.5).setDepth(200);
+    
+    // "WRONG!" text
+    const wrongText = this.add.text(this.scale.width/2, this.scale.height/2 + 50, 'WRONG!', {
+      fontSize: '48px',
+      color: '#ff0000',
+      fontStyle: 'bold',
+      stroke: '#ffffff',
+      strokeThickness: 4,
+      shadow: {
+        offsetX: 3,
+        offsetY: 3,
+        color: '#000000',
+        blur: 6,
+        fill: true
+      }
+    }).setOrigin(0.5).setDepth(200);
+    
+    // Animate X mark - shake effect
+    xmark.setScale(0);
+    this.tweens.add({
+      targets: xmark,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: xmark,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 200,
+          ease: 'Power2'
+        });
+      }
+    });
+    
+    // Animate text - slide up
+    wrongText.setAlpha(0);
+    wrongText.y += 30;
+    this.tweens.add({
+      targets: wrongText,
+      y: wrongText.y - 30,
+      alpha: 1,
+      duration: 400,
+      ease: 'Power2'
+    });
+    
+    // Remove after delay
+    this.time.delayedCall(800, () => {
+      xmark.destroy();
+      wrongText.destroy();
     });
   }
   
@@ -882,39 +1014,35 @@ class GameScene extends Phaser.Scene {
       return;
     }
     
-    // DEBUG: Check if physics is running
-    if (this.physics.world.isPaused) {
-      console.log('Physics is paused!');
-      this.physics.resume();
-    }
+    // Animate road background - move downward to simulate car moving forward
+    this.roadBg.tilePositionY -= this.gameSpeed / 10;
+    this.grassBg.tilePositionY -= this.gameSpeed / 10; // Move downward like the road
     
-    // DEBUG: Log physics world state
-    console.log('Physics world enabled:', this.physics.world.enabled);
-    console.log('Physics world paused:', this.physics.world.isPaused);
-    console.log('Total physics bodies:', this.physics.world.bodies.size);
+    // Animate barriers and lane lines - also move downward
+    if (this.leftBarrier) this.leftBarrier.tilePositionY -= this.gameSpeed / 10;
+    if (this.rightBarrier) this.rightBarrier.tilePositionY -= this.gameSpeed / 10;
+    if (this.laneLine1) this.laneLine1.tilePositionY -= this.gameSpeed / 8;
+    if (this.laneLine2) this.laneLine2.tilePositionY -= this.gameSpeed / 8;
     
-    // Animate road background - DISABLED FOR DEBUGGING
-    // this.roadBg.tilePositionY += this.gameSpeed / 10;
-    // this.grassBg.tilePositionY += this.gameSpeed / 15;
-    
-    // Update obstacle car text positions and debug info
-    let debugInfo = `Cars: ${this.obstacleCars.children.entries.length}`;
+    // Update obstacle car text positions and manually move cars
     this.obstacleCars.children.entries.forEach((car, index) => {
-      // MANUAL MOVEMENT - bypass physics for debugging
-      car.y += 3; // Move car down manually
+      // Manually move car down the screen (faster movement)
+      car.y += this.gameSpeed / 20; // Increased from /60 to /20 for faster movement
       
       if (car.answerText && car.answerText.active) {
         // Make text follow the car
         car.answerText.x = car.x;
         car.answerText.y = car.y;
-        debugInfo += ` | Car${index}: ${car.answerText.text} at (${Math.round(car.x)},${Math.round(car.y)})`;
-      } else {
-        debugInfo += ` | Car${index}: NO TEXT`;
+      }
+      
+      // Debug: Track car movement
+      if (index === 0) { // Only log for first car to avoid spam
+        console.log(`Car ${index} position: (${Math.round(car.x)}, ${Math.round(car.y)}), manual movement`);
       }
       
       // Check if car is off screen and spawn new question
       if (car.y > this.scale.height + 100) {
-        console.log(`Car ${index} went off screen, spawning new question`);
+        console.log(`Car ${index} went off screen at y = ${car.y}`);
         this.clearAllCars();
         this.time.delayedCall(500, () => {
           this.nextQuestion();
@@ -922,7 +1050,6 @@ class GameScene extends Phaser.Scene {
         return;
       }
     });
-    this.debugText.setText(debugInfo);
     
     // Player lane switching
     if (Phaser.Input.Keyboard.JustDown(this.cursors.left) && this.currentLane > 0) {
