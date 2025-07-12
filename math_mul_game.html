@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Math Racing Quest - Phaser 3</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #2c3e50;
+      font-family: 'Arial', sans-serif;
+    }
+    canvas { display: block; margin: auto; }
+  </style>
+</head>
+<body>
+<script>
+// Preload assets
+class PreloadScene extends Phaser.Scene {
+  constructor() { super('PreloadScene'); }
+  
+  preload() {
+    // Car sprites
+    this.load.image('playerCar', 'assets/racing/PNG/Cars/car_blue_1.png');
+    this.load.image('enemyCar1', 'assets/racing/PNG/Cars/car_red_1.png');
+    this.load.image('enemyCar2', 'assets/racing/PNG/Cars/car_yellow_1.png');
+    this.load.image('enemyCar3', 'assets/racing/PNG/Cars/car_green_1.png');
+    
+    // Road tiles - using straight road pieces
+    this.load.image('roadTile', 'assets/racing/PNG/Tiles/Asphalt road/road_asphalt01.png');
+    this.load.image('roadLine', 'assets/racing/PNG/Tiles/Asphalt road/road_asphalt22.png');
+    this.load.image('grassTile', 'assets/racing/PNG/Tiles/Grass/land_grass01.png');
+    
+    // Static racing background for menu
+    this.load.image('racingBg', 'assets/racing/Sample.png');
+    
+    // Objects for decoration
+    this.load.image('tree', 'assets/racing/PNG/Objects/tree_small.png');
+    this.load.image('cone', 'assets/racing/PNG/Objects/cone_straight.png');
+    this.load.image('barrier', 'assets/racing/PNG/Objects/barrier_red.png');
+    
+    // UI elements
+    this.load.image('speedometer', 'assets/racing/PNG/Objects/lights.png');
+    
+    // Loading screen
+    this.add.text(this.scale.width/2, this.scale.height/2, 'Loading Racing Assets...', {
+      fontSize: '32px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    const progressBar = this.add.graphics();
+    const progressBox = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillRect(this.scale.width/2 - 160, this.scale.height/2 + 50, 320, 50);
+    
+    this.load.on('progress', (value) => {
+      progressBar.clear();
+      progressBar.fillStyle(0x00ff00, 1);
+      progressBar.fillRect(this.scale.width/2 - 150, this.scale.height/2 + 60, 300 * value, 30);
+    });
+  }
+  
+  create() {
+    this.scene.start('MenuScene');
+  }
+}
+
+// Enhanced Menu Scene
+class MenuScene extends Phaser.Scene {
+  constructor() { super('MenuScene'); }
+  
+  create() {
+    // Static racing background
+    this.add.image(this.scale.width/2, this.scale.height/2, 'racingBg').setScale(
+      Math.max(this.scale.width / 800, this.scale.height / 600)
+    );
+    
+    // Add semi-transparent overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.6);
+    overlay.fillRect(0, 0, this.scale.width, this.scale.height);
+    
+    // Menu state
+    this.currentOption = 0; // 0 = Start Game, 1 = Max Multiplier, 2 = Game Speed
+    this.maxMult = 10;
+    this.gameSpeed = 2; // 1 = Slow, 2 = Normal, 3 = Fast
+    this.speedNames = ['Slow', 'Normal', 'Fast'];
+    
+    // Title with racing theme
+    const title = this.add.text(this.scale.width/2, this.scale.height/2 - 200, 'MATH RACING QUEST', {
+      fontSize: '48px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#ff6b35',
+      strokeThickness: 4,
+      shadow: {
+        offsetX: 3,
+        offsetY: 3,
+        color: '#000000',
+        blur: 5,
+        fill: true
+      }
+    }).setOrigin(0.5);
+    
+    // Subtitle
+    this.add.text(this.scale.width/2, this.scale.height/2 - 150, 'Race through math problems!', {
+      fontSize: '24px',
+      color: '#ecf0f1',
+      fontStyle: 'italic'
+    }).setOrigin(0.5);
+    
+    // Menu container with background
+    const menuBg = this.add.graphics();
+    menuBg.fillStyle(0x2c3e50, 0.9);
+    menuBg.fillRoundedRect(this.scale.width/2 - 250, this.scale.height/2 - 80, 500, 240, 20);
+    menuBg.lineStyle(3, 0xff6b35, 1);
+    menuBg.strokeRoundedRect(this.scale.width/2 - 250, this.scale.height/2 - 80, 500, 240, 20);
+    
+    // Menu options
+    this.startGameText = this.add.text(this.scale.width/2, this.scale.height/2 - 40, 'START GAME', {
+      fontSize: '32px',
+      color: '#27ae60',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    this.maxMultText = this.add.text(this.scale.width/2, this.scale.height/2 + 10, `Max Multiplier: ${this.maxMult}`, {
+      fontSize: '28px',
+      color: '#f39c12',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    this.gameSpeedText = this.add.text(this.scale.width/2, this.scale.height/2 + 60, `Game Speed: ${this.speedNames[this.gameSpeed - 1]}`, {
+      fontSize: '28px',
+      color: '#3498db',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    // Instructions
+    this.instructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 120, 'Use ↑↓ to select, ← → to change, ENTER to confirm', {
+      fontSize: '18px',
+      color: '#bdc3c7',
+      fontStyle: 'italic'
+    }).setOrigin(0.5);
+    
+    // Store menu elements for easy access
+    this.menuOptions = [
+      this.startGameText,
+      this.maxMultText,
+      this.gameSpeedText
+    ];
+    
+    // Input
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    
+    // Initial highlight
+    this.updateMenuHighlight();
+  }
+  
+  updateMenuHighlight() {
+    // Reset all options to normal style
+    this.startGameText.setStyle({
+      fontSize: '32px',
+      color: '#27ae60',
+      fontStyle: 'bold',
+      backgroundColor: null,
+      padding: { x: 0, y: 0 }
+    });
+    
+    this.maxMultText.setStyle({
+      fontSize: '28px',
+      color: '#f39c12',
+      fontStyle: 'bold',
+      backgroundColor: null,
+      padding: { x: 0, y: 0 }
+    });
+    
+    this.gameSpeedText.setStyle({
+      fontSize: '28px',
+      color: '#3498db',
+      fontStyle: 'bold',
+      backgroundColor: null,
+      padding: { x: 0, y: 0 }
+    });
+    
+    // Highlight current option
+    const currentElement = this.menuOptions[this.currentOption];
+    const colors = ['#27ae60', '#f39c12', '#3498db'];
+    
+    currentElement.setStyle({
+      fontSize: '36px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      backgroundColor: colors[this.currentOption],
+      padding: { x: 20, y: 10 }
+    });
+  }
+  
+  update() {
+    // Navigate up/down between options
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+      this.currentOption = Math.max(0, this.currentOption - 1);
+      this.updateMenuHighlight();
+    }
+    
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+      this.currentOption = Math.min(2, this.currentOption + 1);
+      this.updateMenuHighlight();
+    }
+    
+    // Change values with left/right
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
+      if (this.currentOption === 1) { // Max Multiplier
+        this.maxMult = Math.max(2, this.maxMult - 1);
+        this.maxMultText.setText(`Max Multiplier: ${this.maxMult}`);
+      } else if (this.currentOption === 2) { // Game Speed
+        this.gameSpeed = Math.max(1, this.gameSpeed - 1);
+        this.gameSpeedText.setText(`Game Speed: ${this.speedNames[this.gameSpeed - 1]}`);
+      }
+    }
+    
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+      if (this.currentOption === 1) { // Max Multiplier
+        this.maxMult = Math.min(12, this.maxMult + 1);
+        this.maxMultText.setText(`Max Multiplier: ${this.maxMult}`);
+      } else if (this.currentOption === 2) { // Game Speed
+        this.gameSpeed = Math.min(3, this.gameSpeed + 1);
+        this.gameSpeedText.setText(`Game Speed: ${this.speedNames[this.gameSpeed - 1]}`);
+      }
+    }
+    
+    // Confirm selection
+    if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+      if (this.currentOption === 0) { // Start Game
+        this.registry.set('maxMult', this.maxMult);
+        this.registry.set('gameSpeed', this.gameSpeed);
+        this.scene.start('GameScene');
+      }
+    }
+  }
+}
+
+// Enhanced Game Scene with racing theme
+class GameScene extends Phaser.Scene {
+  constructor() { super('GameScene'); }
+  
+  create() {
+    this.maxMult = this.registry.get('maxMult') || 10;
+    this.selectedSpeed = this.registry.get('gameSpeed') || 2;
+    this.lives = 3;
+    this.score = 0;
+    this.speed = 150;
+    
+    // Set game speed based on selection: 1=Slow(150), 2=Normal(200), 3=Fast(250)
+    const speedMap = { 1: 150, 2: 200, 3: 250 };
+    this.gameSpeed = speedMap[this.selectedSpeed];
+    
+    // Define 3 lanes for the racing track
+    this.lanes = [
+      this.scale.width * 0.3,
+      this.scale.width * 0.5,
+      this.scale.width * 0.7
+    ];
+    this.currentLane = 1;
+    
+    // Create scrolling road background - DISABLED FOR DEBUGGING
+    // this.createRoadBackground();
+    
+    // Player car (now at bottom, moving up/down between lanes)
+    this.player = this.physics.add.sprite(this.lanes[this.currentLane], this.scale.height - 100, 'playerCar');
+    this.player.setScale(1.2);
+    this.player.body.allowGravity = false;
+    this.player.setImmovable(true);
+    
+    // Add car engine sound effect (visual feedback)
+    this.createEngineEffect();
+    
+    // Enhanced UI with racing theme
+    this.createUI();
+    
+    // Obstacle cars group (these will have the math answers)
+    this.obstacleCars = this.physics.add.group();
+    this.physics.add.overlap(this.player, this.obstacleCars, this.handleCollision, null, this);
+    
+    // Add decorative elements
+    this.createDecorations();
+    
+    // Input
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    
+    // Pause menu state
+    this.isPaused = false;
+    this.pauseMenu = null;
+    
+
+    
+    // Start first question
+    this.nextQuestion();
+    
+    // Add speed increase over time
+    this.speedTimer = this.time.addEvent({
+      delay: 10000,
+      callback: this.increaseSpeed,
+      callbackScope: this,
+      loop: true
+    });
+  }
+  
+  createRoadBackground() {
+    // Create grass background on sides
+    this.grassBg = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'grassTile');
+    this.grassBg.setOrigin(0, 0);
+    this.grassBg.setDepth(-3);
+    
+    // Create road in the center
+    const roadWidth = this.scale.width * 0.6;
+    const roadX = (this.scale.width - roadWidth) / 2;
+    this.roadBg = this.add.tileSprite(roadX, 0, roadWidth, this.scale.height, 'roadTile');
+    this.roadBg.setOrigin(0, 0);
+    this.roadBg.setDepth(-2);
+    
+    // Add lane dividers
+    for (let i = 1; i < 3; i++) {
+      const lineX = roadX + (roadWidth * i / 3);
+      const line = this.add.tileSprite(lineX, 0, 4, this.scale.height, 'roadLine');
+      line.setOrigin(0.5, 0);
+      line.setDepth(-1);
+    }
+  }
+  
+  createEngineEffect() {
+    // Add exhaust particles behind player car
+    const particles = this.add.particles(this.player.x, this.player.y + 30, 'cone', {
+      scale: { start: 0.1, end: 0 },
+      speed: { min: 50, max: 100 },
+      lifespan: 300,
+      frequency: 100,
+      tint: 0x666666
+    });
+    particles.startFollow(this.player, 0, 30);
+  }
+  
+  createUI() {
+    // UI Background panel
+    const uiPanel = this.add.graphics();
+    uiPanel.fillStyle(0x2c3e50, 0.9);
+    uiPanel.fillRoundedRect(10, 10, this.scale.width - 20, 120, 10);
+    uiPanel.lineStyle(2, 0xff6b35, 1);
+    uiPanel.strokeRoundedRect(10, 10, this.scale.width - 20, 120, 10);
+    uiPanel.setDepth(10);
+    
+    // Question text with enhanced styling
+    this.questionText = this.add.text(this.scale.width/2, 50, '', {
+      fontSize: '36px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#ff6b35',
+      strokeThickness: 3,
+      shadow: {
+        offsetX: 2,
+        offsetY: 2,
+        color: '#000000',
+        blur: 3,
+        fill: true
+      }
+    }).setOrigin(0.5).setDepth(11);
+    
+    // Lives display with heart-like styling
+    this.livesText = this.add.text(30, 90, `❤️ Lives: ${this.lives}`, {
+      fontSize: '24px',
+      color: '#e74c3c',
+      fontStyle: 'bold'
+    }).setDepth(11);
+    
+    // Score display with trophy styling
+    this.scoreText = this.add.text(30, 30, `🏆 Score: ${this.score}`, {
+      fontSize: '24px',
+      color: '#f1c40f',
+      fontStyle: 'bold'
+    }).setDepth(11);
+    
+    // Speed display
+    this.speedText = this.add.text(this.scale.width - 30, 30, `⚡ Speed: ${this.gameSpeed}`, {
+      fontSize: '20px',
+      color: '#3498db',
+      fontStyle: 'bold'
+    }).setOrigin(1, 0).setDepth(11);
+    
+    // Level indicator
+    this.levelText = this.add.text(this.scale.width - 30, 60, `🎯 Max: ${this.maxMult}`, {
+      fontSize: '18px',
+      color: '#9b59b6',
+      fontStyle: 'bold'
+    }).setOrigin(1, 0).setDepth(11);
+    
+    // Debug text
+    this.debugText = this.add.text(this.scale.width - 30, 90, 'Debug: No cars', {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(1, 0).setDepth(11);
+  }
+  
+  createDecorations() {
+    // Add trees and barriers on the sides
+    this.decorations = this.physics.add.group();
+    
+    this.decorationTimer = this.time.addEvent({
+      delay: 2000,
+      callback: this.spawnDecoration,
+      callbackScope: this,
+      loop: true
+    });
+  }
+  
+  spawnDecoration() {
+    const side = Phaser.Math.RND.pick(['left', 'right']);
+    const x = side === 'left' ? 50 : this.scale.width - 50;
+    const decoration = this.add.image(x, -50, Phaser.Math.RND.pick(['tree', 'cone', 'barrier']));
+    decoration.setScale(0.8);
+    
+    this.decorations.add(decoration);
+    this.physics.world.enable(decoration);
+    decoration.body.setVelocityY(this.gameSpeed);
+    decoration.body.allowGravity = false;
+    
+    // Remove when off screen
+    this.time.delayedCall(5000, () => {
+      if (decoration.active) {
+        decoration.destroy();
+      }
+    });
+  }
+  
+  clearAllCars() {
+    // Properly clean up both cars and their text
+    this.obstacleCars.children.entries.forEach(car => {
+      if (car.answerText && car.answerText.active) {
+        console.log('Destroying text:', car.answerText.text);
+        car.answerText.destroy();
+      }
+    });
+    
+    // Clear the cars group
+    this.obstacleCars.clear(true, true);
+    console.log('All cars and text cleared');
+  }
+  
+  nextQuestion() {
+    console.log('=== NEXT QUESTION CALLED ===');
+    
+    // Clear previous obstacle cars
+    this.clearAllCars();
+    console.log('Cleared previous cars');
+    
+    // Generate multiplication question
+    const a = Phaser.Math.Between(1, this.maxMult);
+    const b = Phaser.Math.Between(1, this.maxMult);
+    this.correct = a * b;
+    this.questionText.setText(`${a} × ${b} = ?`);
+    
+    console.log(`Generated question: ${a} × ${b} = ${this.correct}`);
+    
+    // Add question pulse effect
+    this.tweens.add({
+      targets: this.questionText,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 300,
+      yoyo: true,
+      ease: 'Power2'
+    });
+    
+    // Generate wrong answers
+    const wrongs = new Set();
+    while (wrongs.size < 2) {
+      const delta = Phaser.Math.Between(1, Math.max(5, this.maxMult));
+      const wrong = Phaser.Math.RND.pick([this.correct + delta, this.correct - delta]);
+      if (wrong > 0 && wrong !== this.correct) {
+        wrongs.add(wrong);
+      }
+    }
+    
+    // Create answer options as obstacle cars
+    const options = Phaser.Utils.Array.Shuffle([this.correct, ...wrongs]);
+    const carSprites = ['enemyCar1', 'enemyCar2', 'enemyCar3'];
+    
+         // DEBUG: Log what we're creating
+     console.log('Creating cars with answers:', options);
+     console.log('Correct answer is:', this.correct);
+     
+     options.forEach((answer, idx) => {
+       const x = this.lanes[idx];
+       const y = 100; // Start cars in visible area for now
+       
+       console.log(`Creating car ${idx} at (${x}, ${y}) with answer: ${answer}`);
+       console.log(`Screen dimensions: ${this.scale.width} x ${this.scale.height}`);
+       
+       // Create obstacle car
+       const car = this.physics.add.sprite(x, y, carSprites[idx]);
+       car.setScale(1.1);
+       car.body.setVelocityY(this.gameSpeed);
+       car.body.allowGravity = false;
+       car.correct = (answer === this.correct);
+       car.setDepth(5);
+       
+       console.log(`Car ${idx} velocity set to: ${car.body.velocity.y}`);
+       
+       console.log(`Car ${idx} created, now adding text...`);
+       
+       // Create text at car position (but make it visible by starting it lower)
+       const startY = 100; // Start text in visible area instead of -100
+       const answerText = this.add.text(x, startY, `${answer}`, {
+         fontSize: '32px',
+         color: '#ffffff',
+         fontStyle: 'bold',
+         backgroundColor: car.correct ? '#27ae60' : '#e74c3c',
+         padding: { x: 12, y: 8 },
+         stroke: '#000000',
+         strokeThickness: 4
+       }).setOrigin(0.5);
+       answerText.setDepth(100); // Very high depth to ensure visibility
+       answerText.setVisible(true); // Explicitly set visible
+       answerText.setActive(true); // Explicitly set active
+       
+       // Force add to display list if not already there
+       if (!this.children.exists(answerText)) {
+         this.children.add(answerText);
+       }
+       
+       console.log(`Text created for car ${idx} at (${x}, ${startY}):`, answerText);
+       console.log(`Text visible: ${answerText.visible}, active: ${answerText.active}`);
+       console.log(`Text in display list: ${this.children.exists(answerText)}`);
+       console.log(`Text position: (${answerText.x}, ${answerText.y}), size: ${answerText.width}x${answerText.height}`);
+       
+       // Make text follow the car
+       car.answerText = answerText;
+       
+       this.obstacleCars.add(car);
+       
+       console.log(`Car ${idx} added to group. Total cars:`, this.obstacleCars.children.entries.length);
+       
+       // Cars will be removed when they go off screen or when collision happens
+       // No automatic timer cleanup needed
+     });
+  }
+  
+  handleCollision(player, car) {
+    console.log('=== COLLISION DETECTED ===');
+    console.log('Player position:', player.x, player.y);
+    console.log('Car position:', car.x, car.y);
+    console.log('Car answer:', car.answerText ? car.answerText.text : 'NO TEXT');
+    
+    const wasCorrect = car.correct;
+    const carX = car.x;
+    const carY = car.y;
+
+    // Clear all existing obstacle cars immediately
+    console.log('Clearing all obstacle cars...');
+    this.clearAllCars();
+    
+    // Car crash effect
+    this.createCrashEffect(carX, carY);
+    
+    if (wasCorrect) {
+      // Correct answer
+      this.score += 10 * this.maxMult;
+      this.scoreText.setText(`🏆 Score: ${this.score}`);
+      
+      // Success effect
+      this.cameras.main.flash(200, 0, 255, 0);
+      this.createSuccessEffect();
+    } else {
+      // Wrong answer
+      this.lives -= 1;
+      this.livesText.setText(`❤️ Lives: ${this.lives}`);
+      
+      // Damage effect
+      this.cameras.main.shake(200, 0.02);
+      this.cameras.main.flash(200, 255, 0, 0);
+      
+      if (this.lives <= 0) {
+        this.gameOver();
+        return;
+      }
+    }
+    
+    // Spawn next question after a short delay
+    this.time.delayedCall(500, () => {
+      this.nextQuestion();
+    });
+  }
+  
+  createCrashEffect(x, y) {
+    // Explosion particles
+    const particles = this.add.particles(x, y, 'cone', {
+      scale: { start: 0.3, end: 0 },
+      speed: { min: 100, max: 200 },
+      lifespan: 500,
+      quantity: 10,
+      tint: 0xff6600
+    });
+    
+    this.time.delayedCall(500, () => {
+      particles.destroy();
+    });
+  }
+  
+  createSuccessEffect() {
+    // Success particles
+    const particles = this.add.particles(this.player.x, this.player.y, 'cone', {
+      scale: { start: 0.2, end: 0 },
+      speed: { min: 50, max: 150 },
+      lifespan: 800,
+      quantity: 15,
+      tint: 0x00ff00
+    });
+    
+    this.time.delayedCall(800, () => {
+      particles.destroy();
+    });
+  }
+  
+  increaseSpeed() {
+    this.gameSpeed += 20;
+    this.speedText.setText(`⚡ Speed: ${this.gameSpeed}`);
+    
+    // Flash speed indicator
+    this.tweens.add({
+      targets: this.speedText,
+      alpha: 0.5,
+      duration: 200,
+      yoyo: true,
+      repeat: 2
+    });
+  }
+  
+  showPauseMenu() {
+    if (this.isPaused) return;
+    
+    this.isPaused = true;
+    this.physics.pause();
+    
+    // Pause menu selection
+    this.pauseSelection = 0; // 0 = Resume, 1 = Main Menu
+    
+    // Create pause menu background
+    const pauseBg = this.add.graphics();
+    pauseBg.fillStyle(0x000000, 0.8);
+    pauseBg.fillRect(0, 0, this.scale.width, this.scale.height);
+    pauseBg.setDepth(30);
+    
+    // Menu container
+    const menuContainer = this.add.graphics();
+    menuContainer.fillStyle(0x2c3e50, 0.9);
+    menuContainer.fillRoundedRect(this.scale.width/2 - 200, this.scale.height/2 - 150, 400, 300, 20);
+    menuContainer.lineStyle(3, 0xff6b35, 1);
+    menuContainer.strokeRoundedRect(this.scale.width/2 - 200, this.scale.height/2 - 150, 400, 300, 20);
+    menuContainer.setDepth(31);
+    
+    // Pause title
+    const pauseTitle = this.add.text(this.scale.width/2, this.scale.height/2 - 80, 'GAME PAUSED', {
+      fontSize: '36px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#ff6b35',
+      strokeThickness: 3
+    }).setOrigin(0.5).setDepth(32);
+    
+    // Resume button
+    const resumeText = this.add.text(this.scale.width/2, this.scale.height/2 - 20, 'Resume Game', {
+      fontSize: '28px',
+      color: '#27ae60',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(32);
+    
+    // Main menu button
+    const mainMenuText = this.add.text(this.scale.width/2, this.scale.height/2 + 30, 'Main Menu', {
+      fontSize: '28px',
+      color: '#e74c3c',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(32);
+    
+    // Instructions
+    const instructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 90, 'Use ↑↓ to select, ENTER to confirm', {
+      fontSize: '18px',
+      color: '#bdc3c7',
+      fontStyle: 'italic'
+    }).setOrigin(0.5).setDepth(32);
+    
+    // Store pause menu elements for cleanup
+    this.pauseMenu = {
+      background: pauseBg,
+      container: menuContainer,
+      title: pauseTitle,
+      resume: resumeText,
+      mainMenu: mainMenuText,
+      instructions: instructionsText
+    };
+    
+    // Update selection highlight
+    this.updatePauseSelection();
+    
+    // Add input handlers
+    this.pauseUpHandler = this.input.keyboard.on('keydown-UP', () => {
+      this.pauseSelection = Math.max(0, this.pauseSelection - 1);
+      this.updatePauseSelection();
+    });
+    
+    this.pauseDownHandler = this.input.keyboard.on('keydown-DOWN', () => {
+      this.pauseSelection = Math.min(1, this.pauseSelection + 1);
+      this.updatePauseSelection();
+    });
+    
+    this.pauseEnterHandler = this.input.keyboard.on('keydown-ENTER', () => {
+      if (this.pauseSelection === 0) {
+        this.hidePauseMenu(); // Resume
+      } else {
+        this.scene.start('MenuScene'); // Main Menu
+      }
+    });
+    
+    this.pauseEscapeHandler = this.input.keyboard.on('keydown-ESC', () => {
+      this.hidePauseMenu();
+    });
+  }
+  
+  updatePauseSelection() {
+    if (!this.pauseMenu) return;
+    
+    // Reset both options to normal style
+    this.pauseMenu.resume.setStyle({
+      fontSize: '28px',
+      color: '#27ae60',
+      fontStyle: 'bold',
+      backgroundColor: null,
+      padding: { x: 0, y: 0 }
+    });
+    
+    this.pauseMenu.mainMenu.setStyle({
+      fontSize: '28px',
+      color: '#e74c3c',
+      fontStyle: 'bold',
+      backgroundColor: null,
+      padding: { x: 0, y: 0 }
+    });
+    
+    // Highlight selected option
+    if (this.pauseSelection === 0) {
+      this.pauseMenu.resume.setStyle({
+        fontSize: '32px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        backgroundColor: '#27ae60',
+        padding: { x: 15, y: 8 }
+      });
+    } else {
+      this.pauseMenu.mainMenu.setStyle({
+        fontSize: '32px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        backgroundColor: '#e74c3c',
+        padding: { x: 15, y: 8 }
+      });
+    }
+  }
+  
+  hidePauseMenu() {
+    if (!this.isPaused) return;
+    
+    this.isPaused = false;
+    this.physics.resume();
+    
+    // Remove pause menu elements
+    if (this.pauseMenu) {
+      Object.values(this.pauseMenu).forEach(element => {
+        if (element && element.destroy) {
+          element.destroy();
+        }
+      });
+      this.pauseMenu = null;
+    }
+    
+    // Remove input handlers
+    if (this.pauseEscapeHandler) {
+      this.input.keyboard.off('keydown-ESC', this.pauseEscapeHandler);
+      this.pauseEscapeHandler = null;
+    }
+    
+    if (this.pauseEnterHandler) {
+      this.input.keyboard.off('keydown-ENTER', this.pauseEnterHandler);
+      this.pauseEnterHandler = null;
+    }
+    
+    if (this.pauseUpHandler) {
+      this.input.keyboard.off('keydown-UP', this.pauseUpHandler);
+      this.pauseUpHandler = null;
+    }
+    
+    if (this.pauseDownHandler) {
+      this.input.keyboard.off('keydown-DOWN', this.pauseDownHandler);
+      this.pauseDownHandler = null;
+    }
+  }
+  
+  gameOver() {
+    // Game over screen
+    const gameOverBg = this.add.graphics();
+    gameOverBg.fillStyle(0x000000, 0.8);
+    gameOverBg.fillRect(0, 0, this.scale.width, this.scale.height);
+    gameOverBg.setDepth(20);
+    
+    this.add.text(this.scale.width/2, this.scale.height/2 - 50, 'RACE OVER!', {
+      fontSize: '48px',
+      color: '#e74c3c',
+      fontStyle: 'bold',
+      stroke: '#ffffff',
+      strokeThickness: 4
+    }).setOrigin(0.5).setDepth(21);
+    
+    this.add.text(this.scale.width/2, this.scale.height/2 + 10, `Final Score: ${this.score}`, {
+      fontSize: '32px',
+      color: '#f1c40f',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(21);
+    
+    this.add.text(this.scale.width/2, this.scale.height/2 + 60, 'Press ENTER to race again!', {
+      fontSize: '24px',
+      color: '#ffffff'
+    }).setOrigin(0.5).setDepth(21);
+    
+    this.input.keyboard.once('keydown-ENTER', () => {
+      this.scene.start('MenuScene');
+    });
+  }
+  
+  update() {
+    // Handle escape key for pause menu
+    if (Phaser.Input.Keyboard.JustDown(this.escapeKey) && !this.isPaused) {
+      this.showPauseMenu();
+      return;
+    }
+    
+    // Skip update if paused
+    if (this.isPaused) {
+      return;
+    }
+    
+    // DEBUG: Check if physics is running
+    if (this.physics.world.isPaused) {
+      console.log('Physics is paused!');
+      this.physics.resume();
+    }
+    
+    // DEBUG: Log physics world state
+    console.log('Physics world enabled:', this.physics.world.enabled);
+    console.log('Physics world paused:', this.physics.world.isPaused);
+    console.log('Total physics bodies:', this.physics.world.bodies.size);
+    
+    // Animate road background - DISABLED FOR DEBUGGING
+    // this.roadBg.tilePositionY += this.gameSpeed / 10;
+    // this.grassBg.tilePositionY += this.gameSpeed / 15;
+    
+    // Update obstacle car text positions and debug info
+    let debugInfo = `Cars: ${this.obstacleCars.children.entries.length}`;
+    this.obstacleCars.children.entries.forEach((car, index) => {
+      // MANUAL MOVEMENT - bypass physics for debugging
+      car.y += 3; // Move car down manually
+      
+      if (car.answerText && car.answerText.active) {
+        // Make text follow the car
+        car.answerText.x = car.x;
+        car.answerText.y = car.y;
+        debugInfo += ` | Car${index}: ${car.answerText.text} at (${Math.round(car.x)},${Math.round(car.y)})`;
+      } else {
+        debugInfo += ` | Car${index}: NO TEXT`;
+      }
+      
+      // Check if car is off screen and spawn new question
+      if (car.y > this.scale.height + 100) {
+        console.log(`Car ${index} went off screen, spawning new question`);
+        this.clearAllCars();
+        this.time.delayedCall(500, () => {
+          this.nextQuestion();
+        });
+        return;
+      }
+    });
+    this.debugText.setText(debugInfo);
+    
+    // Player lane switching
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left) && this.currentLane > 0) {
+      this.currentLane--;
+      this.tweens.add({
+        targets: this.player,
+        x: this.lanes[this.currentLane],
+        duration: 200,
+        ease: 'Power2'
+      });
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right) && this.currentLane < 2) {
+      this.currentLane++;
+      this.tweens.add({
+        targets: this.player,
+        x: this.lanes[this.currentLane],
+        duration: 200,
+        ease: 'Power2'
+      });
+    }
+  }
+}
+
+// Game configuration
+const config = {
+  type: Phaser.AUTO,
+  width: window.innerWidth,
+  height: window.innerHeight,
+  backgroundColor: '#2c3e50',
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { y: 0 },
+      debug: false
+    }
+  },
+  scene: [PreloadScene, MenuScene, GameScene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+</body>
+</html>
