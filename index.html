@@ -384,13 +384,14 @@ class GameScene extends Phaser.Scene {
   }
   
   createEngineEffect() {
-    // Add exhaust particles behind player car
+    // Add exhaust particles behind player car (reduced for performance)
     const particles = this.add.particles(this.player.x, this.player.y + 30, 'cone', {
-      scale: { start: 0.1, end: 0 },
-      speed: { min: 50, max: 100 },
-      lifespan: 300,
-      frequency: 100,
-      tint: 0x666666
+      scale: { start: 0.05, end: 0 }, // Reduced from 0.1
+      speed: { min: 30, max: 60 }, // Reduced from 50-100
+      lifespan: 200, // Reduced from 300
+      frequency: 200, // Reduced from 100 (less frequent)
+      tint: 0x666666,
+      quantity: 1 // Only 1 particle at a time
     });
     particles.startFollow(this.player, 0, 30);
   }
@@ -542,9 +543,6 @@ class GameScene extends Phaser.Scene {
       car.setScale(1.1);
       car.correct = (answer === this.correct);
       car.setDepth(50); // Much higher depth to ensure visibility
-      
-      console.log(`Car ${idx} created at position (${x}, ${y}), will move manually`);
-      console.log(`gameSpeed: ${this.gameSpeed}, movement per frame: ${this.gameSpeed / 60}`);
       
       // Determine background color based on car sprite
       let bgColor = '#666666'; // Default gray
@@ -1014,35 +1012,30 @@ class GameScene extends Phaser.Scene {
       return;
     }
     
-    // Animate road background - move downward to simulate car moving forward
-    this.roadBg.tilePositionY -= this.gameSpeed / 10;
-    this.grassBg.tilePositionY -= this.gameSpeed / 10; // Move downward like the road
+    // Animate road background - move downward to simulate car moving forward (reduced frequency)
+    const bgSpeed = this.gameSpeed / 15; // Reduced from /10 to /15 for better performance
+    this.roadBg.tilePositionY -= bgSpeed;
+    this.grassBg.tilePositionY -= bgSpeed;
     
-    // Animate barriers and lane lines - also move downward
-    if (this.leftBarrier) this.leftBarrier.tilePositionY -= this.gameSpeed / 10;
-    if (this.rightBarrier) this.rightBarrier.tilePositionY -= this.gameSpeed / 10;
-    if (this.laneLine1) this.laneLine1.tilePositionY -= this.gameSpeed / 8;
-    if (this.laneLine2) this.laneLine2.tilePositionY -= this.gameSpeed / 8;
+    // Animate barriers and lane lines - also move downward (reduced frequency)
+    if (this.leftBarrier) this.leftBarrier.tilePositionY -= bgSpeed;
+    if (this.rightBarrier) this.rightBarrier.tilePositionY -= bgSpeed;
+    if (this.laneLine1) this.laneLine1.tilePositionY -= bgSpeed * 0.8;
+    if (this.laneLine2) this.laneLine2.tilePositionY -= bgSpeed * 0.8;
     
-    // Update obstacle car text positions and manually move cars
+    // Update obstacle car positions (optimized)
     this.obstacleCars.children.entries.forEach((car, index) => {
-      // Manually move car down the screen (faster movement)
-      car.y += this.gameSpeed / 20; // Increased from /60 to /20 for faster movement
+      // Manually move car down the screen
+      car.y += this.gameSpeed / 20;
       
-      if (car.answerText && car.answerText.active) {
-        // Make text follow the car
+      // Update text position (only if text exists)
+      if (car.answerText) {
         car.answerText.x = car.x;
         car.answerText.y = car.y;
       }
       
-      // Debug: Track car movement
-      if (index === 0) { // Only log for first car to avoid spam
-        console.log(`Car ${index} position: (${Math.round(car.x)}, ${Math.round(car.y)}), manual movement`);
-      }
-      
       // Check if car is off screen and spawn new question
       if (car.y > this.scale.height + 100) {
-        console.log(`Car ${index} went off screen at y = ${car.y}`);
         this.clearAllCars();
         this.time.delayedCall(500, () => {
           this.nextQuestion();
