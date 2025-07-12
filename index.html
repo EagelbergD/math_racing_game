@@ -114,29 +114,33 @@ class MenuScene extends Phaser.Scene {
       fontStyle: 'italic'
     }).setOrigin(0.5);
     
-    // Menu container with background
+    // Menu container with background (wider to accommodate cars)
     const menuBg = this.add.graphics();
     menuBg.fillStyle(0x2c3e50, 0.9);
-    menuBg.fillRoundedRect(this.scale.width/2 - 250, this.scale.height/2 - 80, 500, 240, 20);
+    menuBg.fillRoundedRect(this.scale.width/2 - 350, this.scale.height/2 - 80, 700, 240, 20);
     menuBg.lineStyle(3, 0xff6b35, 1);
-    menuBg.strokeRoundedRect(this.scale.width/2 - 250, this.scale.height/2 - 80, 500, 240, 20);
+    menuBg.strokeRoundedRect(this.scale.width/2 - 350, this.scale.height/2 - 80, 700, 240, 20);
     
-    // Menu options
+    // Add decorative cars on the sides of the menu options
+    this.add.image(this.scale.width/2 - 280, this.scale.height/2 + 10, 'playerCar').setScale(1.0).setDepth(1);
+    this.add.image(this.scale.width/2 + 280, this.scale.height/2 + 10, 'enemyCar1').setScale(1.0).setDepth(1);
+    
+    // Menu options - all same color scheme
     this.startGameText = this.add.text(this.scale.width/2, this.scale.height/2 - 40, 'START GAME', {
       fontSize: '32px',
-      color: '#27ae60',
+      color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
     this.maxMultText = this.add.text(this.scale.width/2, this.scale.height/2 + 10, `Max Multiplier: ${this.maxMult}`, {
       fontSize: '28px',
-      color: '#f39c12',
+      color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
     this.gameSpeedText = this.add.text(this.scale.width/2, this.scale.height/2 + 60, `Game Speed: ${this.speedNames[this.gameSpeed - 1]}`, {
       fontSize: '28px',
-      color: '#3498db',
+      color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
@@ -163,41 +167,60 @@ class MenuScene extends Phaser.Scene {
   }
   
   updateMenuHighlight() {
-    // Reset all options to normal style
+    // Reset all options to normal style - force clear all properties
     this.startGameText.setStyle({
       fontSize: '32px',
-      color: '#27ae60',
+      color: '#ffffff',
       fontStyle: 'bold',
-      backgroundColor: null,
-      padding: { x: 0, y: 0 }
+      backgroundColor: '',
+      padding: { x: 0, y: 0 },
+      stroke: '',
+      strokeThickness: 0,
+      shadow: { offsetX: 0, offsetY: 0, color: '', blur: 0, fill: false }
     });
     
     this.maxMultText.setStyle({
       fontSize: '28px',
-      color: '#f39c12',
+      color: '#ffffff',
       fontStyle: 'bold',
-      backgroundColor: null,
-      padding: { x: 0, y: 0 }
+      backgroundColor: '',
+      padding: { x: 0, y: 0 },
+      stroke: '',
+      strokeThickness: 0,
+      shadow: { offsetX: 0, offsetY: 0, color: '', blur: 0, fill: false }
     });
     
     this.gameSpeedText.setStyle({
       fontSize: '28px',
-      color: '#3498db',
-      fontStyle: 'bold',
-      backgroundColor: null,
-      padding: { x: 0, y: 0 }
-    });
-    
-    // Highlight current option
-    const currentElement = this.menuOptions[this.currentOption];
-    const colors = ['#27ae60', '#f39c12', '#3498db'];
-    
-    currentElement.setStyle({
-      fontSize: '36px',
       color: '#ffffff',
       fontStyle: 'bold',
-      backgroundColor: colors[this.currentOption],
-      padding: { x: 20, y: 10 }
+      backgroundColor: '',
+      padding: { x: 0, y: 0 },
+      stroke: '',
+      strokeThickness: 0,
+      shadow: { offsetX: 0, offsetY: 0, color: '', blur: 0, fill: false }
+    });
+    
+    // Highlight current option with consistent styling
+    const currentElement = this.menuOptions[this.currentOption];
+    const baseFontSize = this.currentOption === 0 ? '32px' : '28px';
+    const highlightFontSize = this.currentOption === 0 ? '38px' : '34px';
+    
+    currentElement.setStyle({
+      fontSize: highlightFontSize,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      backgroundColor: '#ff6b35',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+      shadow: {
+        offsetX: 3,
+        offsetY: 3,
+        color: '#000000',
+        blur: 5,
+        fill: true
+      }
     });
   }
   
@@ -516,11 +539,18 @@ class GameScene extends Phaser.Scene {
        
        // Create text at car position (but make it visible by starting it lower)
        const startY = 100; // Start text in visible area instead of -100
+       
+       // Determine background color based on car sprite
+       let bgColor = '#666666'; // Default gray
+       if (carSprites[idx] === 'enemyCar1') bgColor = '#8B0000'; // Dark red for red car
+       else if (carSprites[idx] === 'enemyCar2') bgColor = '#B8860B'; // Dark yellow for yellow car  
+       else if (carSprites[idx] === 'enemyCar3') bgColor = '#006400'; // Dark green for green car
+       
        const answerText = this.add.text(x, startY, `${answer}`, {
          fontSize: '32px',
          color: '#ffffff',
          fontStyle: 'bold',
-         backgroundColor: car.correct ? '#27ae60' : '#e74c3c',
+         backgroundColor: bgColor,
          padding: { x: 12, y: 8 },
          stroke: '#000000',
          strokeThickness: 4
