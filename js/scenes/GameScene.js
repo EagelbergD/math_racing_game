@@ -105,10 +105,10 @@ class GameScene extends Phaser.Scene {
     this.grassBg.setOrigin(0, 0);
     this.grassBg.setDepth(-3);
     
-    // Create road in the center - balanced road/grass ratio with good lane spacing
+    // Create road in the center - narrower road to show more grass
     const roadWidth = this.isPortrait ? 
-      Math.min(this.scale.width * 0.75, 400) : // Portrait: 75% width max 400px (better road/grass balance)
-      Math.min(550, this.scale.width * 0.5);    // Landscape: max 550px or 50% width (restored ratio)
+      Math.min(this.scale.width * 0.68, 360) : // Portrait: 68% width max 360px (more grass visible)
+      Math.min(480, this.scale.width * 0.45);    // Landscape: max 480px or 45% width (more grass)
     const roadX = (this.scale.width - roadWidth) / 2;
     this.roadBg = this.add.tileSprite(roadX, 0, roadWidth, this.scale.height, 'roadTile');
     this.roadBg.setOrigin(0, 0);

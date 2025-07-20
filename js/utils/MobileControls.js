@@ -371,10 +371,10 @@ class MobileControls {
     const carButtonSize = this.buttonSize * 2.2; // Make car control buttons much larger (120% bigger)
     const spacing = carButtonSize * 0.08; // Slightly reduced spacing for the larger buttons
     
-    // Position both buttons in bottom left corner, side by side
+    // Position both buttons in bottom left corner, side by side - moved down to clear blue car
     const leftX = safeArea.left + carButtonSize/2 + 20;
     const rightX = leftX + carButtonSize + spacing;
-    const buttonsY = this.scene.scale.height - safeArea.bottom - carButtonSize/2 - 20;
+    const buttonsY = this.scene.scale.height - safeArea.bottom - carButtonSize/2 - 40; // Moved down 20px more
     
     // Left button - extra large for excellent car control
     const leftButton = this.createButton('left', leftX, buttonsY, carButtonSize, carButtonSize, '◀', (state) => {
@@ -394,10 +394,10 @@ class MobileControls {
       rightButton.text.setFontSize(Math.floor(carButtonSize * 0.4));
     }
     
-    // Pause button (top right) - moved down to avoid UI panel overlap
+    // Pause button (top right) - positioned to avoid UI panel
     const pauseButtonSize = this.buttonSize; // Keep pause button normal size
     const pauseX = this.scene.scale.width - safeArea.right - pauseButtonSize/2 - 20;
-    const pauseY = safeArea.top + pauseButtonSize/2 + 140; // Moved down from 20 to 140 to clear UI panel
+    const pauseY = safeArea.top + pauseButtonSize/2 + 160; // Moved down slightly more for better spacing
     
     this.createButton('pause', pauseX, pauseY, pauseButtonSize, pauseButtonSize, '⏸', (state) => {
       if (state === 'down') {

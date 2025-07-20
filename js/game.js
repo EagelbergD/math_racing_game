@@ -82,21 +82,21 @@ const config = {
     target: 60,
     forceSetTimeOut: true
   },
-  // Improved mobile-friendly scale configuration
+  // Mobile-optimized scale configuration for full screen coverage
   scale: {
-    mode: Phaser.Scale.FIT, // Use FIT instead of RESIZE for better mobile scaling
+    mode: Phaser.Scale.RESIZE, // Use RESIZE for full screen coverage on mobile
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    // Set responsive dimensions based on device
-    width: window.innerWidth > window.innerHeight ? 800 : 540, // Landscape : Portrait base width
-    height: window.innerWidth > window.innerHeight ? 600 : 960, // Landscape : Portrait base height
+    // Use actual window dimensions for mobile, base dimensions for desktop
+    width: window.innerWidth,
+    height: window.innerHeight,
     // Minimum and maximum sizes
     min: {
       width: 320,
       height: 480
     },
     max: {
-      width: 1920,
-      height: 1200
+      width: 2560,
+      height: 1440
     }
   },
   // Input configuration for mobile
@@ -159,12 +159,8 @@ window.addEventListener('resize', () => {
     deviceDetector.orientation = deviceDetector.getOrientation();
   }
   
-  // Update game scale for new dimensions
-  const isPortrait = window.innerHeight > window.innerWidth;
-  const newWidth = isPortrait ? 540 : 800;
-  const newHeight = isPortrait ? 960 : 600;
-  
-  game.scale.setGameSize(newWidth, newHeight);
+  // Update game scale for new dimensions - use actual window size
+  game.scale.setGameSize(window.innerWidth, window.innerHeight);
   game.scale.refresh();
 });
 
@@ -177,12 +173,8 @@ window.addEventListener('orientationchange', () => {
       deviceDetector.orientation = deviceDetector.getOrientation();
     }
     
-    // Update game scale for new orientation
-    const isPortrait = window.innerHeight > window.innerWidth;
-    const newWidth = isPortrait ? 540 : 800;
-    const newHeight = isPortrait ? 960 : 600;
-    
-    game.scale.setGameSize(newWidth, newHeight);
+    // Update game scale for new orientation - use actual window size
+    game.scale.setGameSize(window.innerWidth, window.innerHeight);
     game.scale.refresh();
     
     // Notify scenes about orientation change
