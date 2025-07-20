@@ -3,14 +3,24 @@ class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
   
   create() {
+    const deviceDetector = new DeviceDetector();
+    // Initialize input manager
+    this.inputManager = new InputManager(this, deviceDetector);
+    
+    // Initialize mobile controls if needed
+    if (this.inputManager.shouldUseMobileLayout()) {
+      this.mobileControls = new MobileControls(this);
+      this.inputManager.setMobileControls(this.mobileControls);
+    }
+    
     this.maxMult = this.registry.get('maxMult') || 10;
     this.selectedSpeed = this.registry.get('gameSpeed') || 2;
     this.lives = 3;
     this.score = 0;
     this.speed = 150;
     
-    // Set game speed based on selection: 1=Slow(150), 2=Normal(200), 3=Fast(250)
-    const speedMap = { 1: 25, 2: 50, 3: 100 };
+    // Set game speed based on selection: 0=Very Slow, 1=Slow, 2=Normal, 3=Fast, 4=Very Fast
+    const speedMap = { 0: 15, 1: 25, 2: 50, 3: 100, 4: 150 };
     this.gameSpeed = speedMap[this.selectedSpeed];
     
     // Current lane (will be positioned correctly after road creation)
@@ -39,9 +49,8 @@ class GameScene extends Phaser.Scene {
     // Add decorative elements
     this.createDecorations();
     
-    // Input
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    // Setup mobile controls if needed
+    this.setupMobileControls();
     
     // Pause menu state
     this.isPaused = false;
@@ -167,8 +176,12 @@ class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(1, 0).setDepth(11);
     
-    // Instructions text
-    this.instructionsText = this.add.text(this.scale.width - 30, 90, 'Use ← → to change lanes', {
+    // Instructions text - adapt based on device
+    const instructionText = this.inputManager.shouldUseMobileLayout() 
+      ? 'Use touch controls to change lanes'
+      : 'Use ← → to change lanes';
+    
+    this.instructionsText = this.add.text(this.scale.width - 30, 90, instructionText, {
       fontSize: '16px',
       color: '#bdc3c7',
       fontStyle: 'italic'
@@ -185,6 +198,13 @@ class GameScene extends Phaser.Scene {
       callbackScope: this,
       loop: true
     });
+  }
+  
+  setupMobileControls() {
+    if (!this.inputManager.shouldUseMobileLayout()) return;
+    
+    // Create improved directional buttons for lane switching - positioned side by side in bottom left
+    this.mobileControls.createGameDirectionalButtons();
   }
   
   spawnDecoration() {
@@ -537,26 +557,33 @@ class GameScene extends Phaser.Scene {
       strokeThickness: 3
     }).setOrigin(0.5).setDepth(502);
     
-    // Resume button - start with consistent white styling like main menu
-    const resumeText = this.add.text(this.scale.width/2, this.scale.height/2 - 20, 'Resume Game', {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(502);
+    // Resume and Main Menu buttons - only show text on desktop (mobile uses direct buttons)
+    let resumeText, mainMenuText;
+    if (!this.inputManager.shouldUseMobileLayout()) {
+      resumeText = this.add.text(this.scale.width/2, this.scale.height/2 - 20, 'Resume Game', {
+        fontSize: '28px',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(502);
+      
+      mainMenuText = this.add.text(this.scale.width/2, this.scale.height/2 + 30, 'Main Menu', {
+        fontSize: '28px',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(502);
+    }
     
-    // Main menu button - start with consistent white styling like main menu
-    const mainMenuText = this.add.text(this.scale.width/2, this.scale.height/2 + 30, 'Main Menu', {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(502);
-    
-    // Instructions
-    const instructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 90, 'Use ↑↓ to select, ENTER to confirm', {
-      fontSize: '18px',
-      color: '#bdc3c7',
-      fontStyle: 'italic'
-    }).setOrigin(0.5).setDepth(502);
+    // Instructions - only show on desktop (mobile buttons are self-explanatory)
+    let instructionsText;
+    if (!this.inputManager.shouldUseMobileLayout()) {
+      const pauseInstructionText = 'Use ↑↓ to select, ENTER to confirm';
+      
+      instructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 90, pauseInstructionText, {
+        fontSize: '18px',
+        color: '#bdc3c7',
+        fontStyle: 'italic'
+      }).setOrigin(0.5).setDepth(502);
+    }
     
     // Store pause menu elements for cleanup
     this.pauseMenu = {
@@ -571,32 +598,67 @@ class GameScene extends Phaser.Scene {
     // Update selection highlight
     this.updatePauseSelection();
     
-    // Add input handlers
-    this.pauseUpHandler = this.input.keyboard.on('keydown-UP', () => {
-      this.pauseSelection = Math.max(0, this.pauseSelection - 1);
-      this.updatePauseSelection();
-    });
-    
-    this.pauseDownHandler = this.input.keyboard.on('keydown-DOWN', () => {
-      this.pauseSelection = Math.min(1, this.pauseSelection + 1);
-      this.updatePauseSelection();
-    });
-    
-    this.pauseEnterHandler = this.input.keyboard.on('keydown-ENTER', () => {
-      if (this.pauseSelection === 0) {
-        this.hidePauseMenu(); // Resume
-      } else {
-        this.scene.start('MenuScene'); // Main Menu
-      }
-    });
-    
-    this.pauseEscapeHandler = this.input.keyboard.on('keydown-ESC', () => {
-      this.hidePauseMenu();
-    });
+    // Setup pause menu controls
+    this.setupPauseMenuControls();
+  }
+  
+  setupPauseMenuControls() {
+    if (this.inputManager.shouldUseMobileLayout()) {
+      // Create mobile pause menu controls with direct buttons
+      this.pauseMobileControls = new MobileControls(this);
+      
+      // Create direct Resume Game button
+      this.pauseMobileControls.createSecondaryButton(
+        'pause_resume',
+        this.scale.width/2,
+        this.scale.height/2 - 35, // Moved up for better spacing
+        'Resume Game',
+        () => {
+          this.hidePauseMenu();
+        }
+      );
+      
+      // Create direct Main Menu button
+      this.pauseMobileControls.createSecondaryButton(
+        'pause_main_menu',
+        this.scale.width/2,
+        this.scale.height/2 + 35, // Moved down for better spacing
+        'Main Menu',
+        () => {
+          this.scene.start('MenuScene');
+        }
+      );
+    } else {
+      // Desktop keyboard input handlers
+      this.pauseUpHandler = this.input.keyboard.on('keydown-UP', () => {
+        this.pauseSelection = Math.max(0, this.pauseSelection - 1);
+        this.updatePauseSelection();
+      });
+      
+      this.pauseDownHandler = this.input.keyboard.on('keydown-DOWN', () => {
+        this.pauseSelection = Math.min(1, this.pauseSelection + 1);
+        this.updatePauseSelection();
+      });
+      
+      this.pauseEnterHandler = this.input.keyboard.on('keydown-ENTER', () => {
+        if (this.pauseSelection === 0) {
+          this.hidePauseMenu(); // Resume
+        } else {
+          this.scene.start('MenuScene'); // Main Menu
+        }
+      });
+      
+      this.pauseEscapeHandler = this.input.keyboard.on('keydown-ESC', () => {
+        this.hidePauseMenu();
+      });
+    }
   }
   
   updatePauseSelection() {
-    if (!this.pauseMenu) return;
+    if (!this.pauseMenu || this.inputManager.shouldUseMobileLayout()) return;
+    
+    // Only update selection highlighting on desktop
+    if (!this.pauseMenu.resume || !this.pauseMenu.mainMenu) return;
     
     // Reset both options to normal style - force clear all properties like main menu
     this.pauseMenu.resume.setStyle({
@@ -676,24 +738,33 @@ class GameScene extends Phaser.Scene {
     }
     
     // Remove input handlers
-    if (this.pauseEscapeHandler) {
-      this.input.keyboard.off('keydown-ESC', this.pauseEscapeHandler);
-      this.pauseEscapeHandler = null;
-    }
-    
-    if (this.pauseEnterHandler) {
-      this.input.keyboard.off('keydown-ENTER', this.pauseEnterHandler);
-      this.pauseEnterHandler = null;
-    }
-    
-    if (this.pauseUpHandler) {
-      this.input.keyboard.off('keydown-UP', this.pauseUpHandler);
-      this.pauseUpHandler = null;
-    }
-    
-    if (this.pauseDownHandler) {
-      this.input.keyboard.off('keydown-DOWN', this.pauseDownHandler);
-      this.pauseDownHandler = null;
+    if (this.inputManager.shouldUseMobileLayout()) {
+      // Clean up mobile pause controls
+      if (this.pauseMobileControls) {
+        this.pauseMobileControls.destroy();
+        this.pauseMobileControls = null;
+      }
+    } else {
+      // Clean up desktop keyboard handlers
+      if (this.pauseEscapeHandler) {
+        this.input.keyboard.off('keydown-ESC', this.pauseEscapeHandler);
+        this.pauseEscapeHandler = null;
+      }
+      
+      if (this.pauseEnterHandler) {
+        this.input.keyboard.off('keydown-ENTER', this.pauseEnterHandler);
+        this.pauseEnterHandler = null;
+      }
+      
+      if (this.pauseUpHandler) {
+        this.input.keyboard.off('keydown-UP', this.pauseUpHandler);
+        this.pauseUpHandler = null;
+      }
+      
+      if (this.pauseDownHandler) {
+        this.input.keyboard.off('keydown-DOWN', this.pauseDownHandler);
+        this.pauseDownHandler = null;
+      }
     }
   }
   
@@ -740,39 +811,91 @@ class GameScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(21);
     }
     
-    // Name input state
-    this.gameOverState = 'name_input'; // 'name_input' or 'options'
-    this.playerName = '';
-    this.nameInputActive = true;
-    
-    // Name input prompt
-    this.namePromptText = this.add.text(this.scale.width/2, this.scale.height/2 - 10, 'Enter your name:', {
-      fontSize: '24px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(21);
-    
-    // Name input field
-    this.nameInputText = this.add.text(this.scale.width/2, this.scale.height/2 + 30, this.playerName + '_', {
-      fontSize: '28px',
-      color: '#3498db',
-      fontStyle: 'bold',
-      backgroundColor: '#2c3e50',
-      padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setDepth(21);
-    
-    // Instructions
-    this.nameInstructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 80, 'Type your name and press ENTER', {
-      fontSize: '18px',
-      color: '#bdc3c7',
-      fontStyle: 'italic'
-    }).setOrigin(0.5).setDepth(21);
-    
-    // Set up name input
-    this.setupNameInput();
+    // Check if we need to ask for name (only for new high scores)
+    if (this.isNewHighScore) {
+      // Name input state for high scores
+      this.gameOverState = 'name_input'; // 'name_input' or 'options'
+      this.playerName = '';
+      this.nameInputActive = true;
+      
+      // Only create desktop name input elements on desktop
+      if (!this.inputManager.shouldUseMobileLayout()) {
+        // Name input prompt
+        this.namePromptText = this.add.text(this.scale.width/2, this.scale.height/2 - 10, 'Enter your name:', {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(21);
+        
+        // Name input field
+        this.nameInputText = this.add.text(this.scale.width/2, this.scale.height/2 + 30, this.playerName + '_', {
+          fontSize: '28px',
+          color: '#3498db',
+          fontStyle: 'bold',
+          backgroundColor: '#2c3e50',
+          padding: { x: 20, y: 10 }
+        }).setOrigin(0.5).setDepth(21);
+        
+        // Instructions
+        this.nameInstructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 80, 'Type your name and press ENTER', {
+          fontSize: '18px',
+          color: '#bdc3c7',
+          fontStyle: 'italic'
+        }).setOrigin(0.5).setDepth(21);
+      }
+      
+      // Set up name input for high scores
+      this.setupNameInput();
+    } else {
+      // Not a high score - skip directly to game over options
+      this.gameOverState = 'options';
+      this.playerName = 'Anonymous'; // Default name for non-high scores
+      this.showGameOverOptions();
+    }
   }
   
   setupNameInput() {
+    // Use mobile-friendly name input if on mobile, otherwise use keyboard input
+    if (this.inputManager.shouldUseMobileLayout()) {
+      this.setupMobileNameInput();
+    } else {
+      this.setupDesktopNameInput();
+    }
+  }
+  
+  setupMobileNameInput() {
+    
+    // Use mobile name input utility
+    const nameInput = getMobileNameInput(this);
+    
+    nameInput.show('Enter your name:', '', (name) => {
+      
+      try {
+        // Add small delay to ensure mobile input is fully closed
+        setTimeout(() => {
+          try {
+            if (name !== null) {
+              this.playerName = name;
+              this.submitName();
+            } else {
+              // User cancelled, use Anonymous
+              this.playerName = 'Anonymous';
+              this.submitName();
+            }
+          } catch (error) {
+            console.error('🔍 Phase 2: Error in timeout callback:', error);
+            console.error('🔍 Phase 2: Error stack:', error.stack);
+          }
+        }, 100);
+      } catch (error) {
+        console.error('🔍 Phase 2: Error in main callback:', error);
+        console.error('🔍 Phase 2: Error stack:', error.stack);
+      }
+    });
+    
+  }
+  
+  setupDesktopNameInput() {
     // Add keyboard input listeners for name entry
     this.input.keyboard.on('keydown', (event) => {
       if (this.gameOverState !== 'name_input') return;
@@ -799,6 +922,7 @@ class GameScene extends Phaser.Scene {
   }
   
   submitName() {
+    
     if (this.playerName.trim().length === 0) {
       this.playerName = 'Anonymous';
     }
@@ -806,16 +930,26 @@ class GameScene extends Phaser.Scene {
     // Add score to high scores
     highScores.addScore(this.playerName.trim(), this.score, this.selectedSpeed);
     
-    // Remove name input elements
-    this.namePromptText.destroy();
-    this.nameInputText.destroy();
-    this.nameInstructionsText.destroy();
+    // Remove name input elements (only if they exist - desktop only)
+    if (this.namePromptText) {
+      this.namePromptText.destroy();
+      this.namePromptText = null;
+    }
+    if (this.nameInputText) {
+      this.nameInputText.destroy();
+      this.nameInputText = null;
+    }
+    if (this.nameInstructionsText) {
+      this.nameInstructionsText.destroy();
+      this.nameInstructionsText = null;
+    }
     
     // Show options screen
     this.showGameOverOptions();
   }
   
   showGameOverOptions() {
+    
     this.gameOverState = 'options';
     this.gameOverSelection = 0; // 0 = Race Again, 1 = Main Menu
     
@@ -826,29 +960,38 @@ class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(21);
     
-    // Race again button
-    this.raceAgainText = this.add.text(this.scale.width/2, this.scale.height/2 + 30, 'Race Again', {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(21);
+    // Race again and Main menu buttons - only show text on desktop (mobile uses direct buttons)
+    if (!this.inputManager.shouldUseMobileLayout()) {
+      this.raceAgainText = this.add.text(this.scale.width/2, this.scale.height/2 + 30, 'Race Again', {
+        fontSize: '28px',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(21);
+      
+      this.mainMenuText = this.add.text(this.scale.width/2, this.scale.height/2 + 80, 'Main Menu', {
+        fontSize: '28px',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(21);
+    }
     
-    // Main menu button
-    this.mainMenuText = this.add.text(this.scale.width/2, this.scale.height/2 + 80, 'Main Menu', {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(21);
-    
-    // Instructions
-    this.optionsInstructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 130, 'Use ↑↓ to select, ENTER to confirm', {
-      fontSize: '18px',
-      color: '#bdc3c7',
-      fontStyle: 'italic'
-    }).setOrigin(0.5).setDepth(21);
+    // Instructions - only show on desktop (mobile buttons are self-explanatory)
+    if (!this.inputManager.shouldUseMobileLayout()) {
+      const gameOverInstructionText = 'Use ↑↓ to select, ENTER to confirm';
+      
+      this.optionsInstructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 130, gameOverInstructionText, {
+        fontSize: '18px',
+        color: '#bdc3c7',
+        fontStyle: 'italic'
+      }).setOrigin(0.5).setDepth(21);
+    }
     
     // Create high scores table for the played speed
-    const tableY = this.scale.height/2 + 180;
+    // Position table lower on mobile to avoid overlap with buttons
+    const tableY = this.inputManager.shouldUseMobileLayout() 
+      ? this.scale.height/2 + 160  // Lower position for mobile
+      : this.scale.height/2 + 180; // Original position for desktop
+      
     this.gameOverHighScoresTable = createHighScoresTable(this, this.scale.width/2, tableY, this.selectedSpeed, `High Scores - ${highScores.getSpeedName(this.selectedSpeed)}`);
     
     // Set depth for all table elements
@@ -864,6 +1007,10 @@ class GameScene extends Phaser.Scene {
   }
   
   updateGameOverSelection() {
+    // Only update selection highlighting on desktop
+    if (this.inputManager.shouldUseMobileLayout()) return;
+    if (!this.raceAgainText || !this.mainMenuText) return;
+    
     // Reset both options to normal style
     this.raceAgainText.setStyle({
       fontSize: '28px',
@@ -926,38 +1073,184 @@ class GameScene extends Phaser.Scene {
   }
   
   setupOptionsInput() {
-    // Remove previous keyboard listeners
-    this.input.keyboard.removeAllListeners('keydown');
     
-    // Add new listeners for options navigation
-    this.input.keyboard.on('keydown', (event) => {
-      if (this.gameOverState !== 'options') return;
+    if (this.inputManager.shouldUseMobileLayout()) {
       
-      if (event.key === 'ArrowUp') {
-        this.gameOverSelection = Math.max(0, this.gameOverSelection - 1);
-        this.updateGameOverSelection();
-      } else if (event.key === 'ArrowDown') {
-        this.gameOverSelection = Math.min(1, this.gameOverSelection + 1);
-        this.updateGameOverSelection();
-      } else if (event.key === 'Enter') {
-        if (this.gameOverSelection === 0) {
+      // Destroy any existing mobile controls first
+      if (this.gameOverMobileControls) {
+        this.gameOverMobileControls.destroy();
+      }
+      
+      // Create mobile game over controls with direct buttons
+      this.gameOverMobileControls = new MobileControls(this);
+      
+      // Calculate safe button positions
+      const buttonY1 = Math.min(this.scale.height/2 + 40, this.scale.height - 200); // Race Again
+      const buttonY2 = Math.min(this.scale.height/2 + 100, this.scale.height - 140); // Main Menu
+      
+      // Create direct Race Again button - positioned to avoid high scores table
+      const raceAgainButton = this.gameOverMobileControls.createPrimaryButton(
+        'gameover_race_again',
+        this.scale.width/2,
+        buttonY1,
+        'Race Again',
+        () => {
           // Race Again - start new game with same settings
           this.registry.set('maxMult', this.registry.get('lastMaxMult'));
           this.registry.set('gameSpeed', this.registry.get('lastGameSpeed'));
           this.scene.start('GameScene');
-        } else {
-          // Main Menu
+        }
+      );
+      
+      // Create direct Main Menu button
+      const mainMenuButton = this.gameOverMobileControls.createSecondaryButton(
+        'gameover_main_menu',
+        this.scale.width/2,
+        buttonY2,
+        'Main Menu',
+        () => {
           this.scene.start('MenuScene');
         }
+      );
+      
+      // Fallback: If MobileControls didn't create buttons properly, create them manually
+      if (!this.gameOverMobileControls.buttons || Object.keys(this.gameOverMobileControls.buttons).length === 0) {
+        this.createFallbackMobileButtons(buttonY1, buttonY2);
+      } else {
+        
+        // Ensure mobile controls have proper depth and visibility
+        Object.values(this.gameOverMobileControls.buttons).forEach((button, index) => {
+          
+          if (button.background) {
+            button.background.setDepth(25); // Higher than game over elements
+            button.background.setVisible(true);
+          }
+          if (button.text) {
+            button.text.setDepth(25);
+            button.text.setVisible(true);
+          }
+          if (button.hitArea) {
+            button.hitArea.setDepth(25);
+            button.hitArea.setVisible(true);
+          }
+        });
+        
+        // Ensure UI container is visible and has proper depth
+        if (this.gameOverMobileControls.uiContainer) {
+          this.gameOverMobileControls.uiContainer.setDepth(25);
+          this.gameOverMobileControls.uiContainer.setVisible(true);
+        }
       }
+      
+    } else {
+      // Desktop keyboard input
+      // Remove previous keyboard listeners
+      this.input.keyboard.removeAllListeners('keydown');
+      
+      // Add new listeners for options navigation
+      this.input.keyboard.on('keydown', (event) => {
+        if (this.gameOverState !== 'options') return;
+        
+        if (event.key === 'ArrowUp') {
+          this.gameOverSelection = Math.max(0, this.gameOverSelection - 1);
+          this.updateGameOverSelection();
+        } else if (event.key === 'ArrowDown') {
+          this.gameOverSelection = Math.min(1, this.gameOverSelection + 1);
+          this.updateGameOverSelection();
+        } else if (event.key === 'Enter') {
+          if (this.gameOverSelection === 0) {
+            // Race Again - start new game with same settings
+            this.registry.set('maxMult', this.registry.get('lastMaxMult'));
+            this.registry.set('gameSpeed', this.registry.get('lastGameSpeed'));
+            this.scene.start('GameScene');
+          } else {
+            // Main Menu
+            this.scene.start('MenuScene');
+          }
+        }
+      });
+    }
+  }
+  
+  createFallbackMobileButtons(buttonY1, buttonY2) {
+    
+    // Create Race Again button manually
+    const raceAgainBg = this.add.graphics();
+    raceAgainBg.fillStyle(0xff6b35, 0.9);
+    raceAgainBg.fillRoundedRect(
+      this.scale.width/2 - 90, buttonY1 - 25, 
+      180, 50, 10
+    );
+    raceAgainBg.lineStyle(4, 0x2c3e50, 1);
+    raceAgainBg.strokeRoundedRect(
+      this.scale.width/2 - 90, buttonY1 - 25, 
+      180, 50, 10
+    );
+    raceAgainBg.setDepth(25);
+    
+    const raceAgainText = this.add.text(this.scale.width/2, buttonY1, 'Race Again', {
+      fontSize: '20px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(25);
+    
+    const raceAgainHitArea = this.add.rectangle(this.scale.width/2, buttonY1, 180, 50, 0x000000, 0);
+    raceAgainHitArea.setInteractive();
+    raceAgainHitArea.setDepth(25);
+    raceAgainHitArea.on('pointerdown', () => {
+      this.registry.set('maxMult', this.registry.get('lastMaxMult'));
+      this.registry.set('gameSpeed', this.registry.get('lastGameSpeed'));
+      this.scene.start('GameScene');
     });
+    
+    // Create Main Menu button manually
+    const mainMenuBg = this.add.graphics();
+    mainMenuBg.fillStyle(0x2c3e50, 0.8);
+    mainMenuBg.fillRoundedRect(
+      this.scale.width/2 - 75, buttonY2 - 20, 
+      150, 40, 10
+    );
+    mainMenuBg.lineStyle(3, 0xff6b35, 1);
+    mainMenuBg.strokeRoundedRect(
+      this.scale.width/2 - 75, buttonY2 - 20, 
+      150, 40, 10
+    );
+    mainMenuBg.setDepth(25);
+    
+    const mainMenuText = this.add.text(this.scale.width/2, buttonY2, 'Main Menu', {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(25);
+    
+    const mainMenuHitArea = this.add.rectangle(this.scale.width/2, buttonY2, 150, 40, 0x000000, 0);
+    mainMenuHitArea.setInteractive();
+    mainMenuHitArea.setDepth(25);
+    mainMenuHitArea.on('pointerdown', () => {
+      this.scene.start('MenuScene');
+    });
+    
+    // Store references for cleanup
+    this.fallbackButtons = [
+      raceAgainBg, raceAgainText, raceAgainHitArea,
+      mainMenuBg, mainMenuText, mainMenuHitArea
+    ];
+    
   }
   
   update() {
     const startTime = performance.now();
     
+    // Update input manager
+    this.inputManager.update();
+    
+    // Update mobile controls if present
+    if (this.mobileControls) {
+      this.mobileControls.update();
+    }
+    
     // Handle escape key for pause menu
-    if (Phaser.Input.Keyboard.JustDown(this.escapeKey) && !this.isPaused) {
+    if (this.inputManager.isEscapeJustPressed() && !this.isPaused) {
       this.showPauseMenu();
       return;
     }
@@ -1005,7 +1298,7 @@ class GameScene extends Phaser.Scene {
     
     const inputStartTime = performance.now();
     // Player lane switching
-    if (Phaser.Input.Keyboard.JustDown(this.cursors.left) && this.currentLane > 0) {
+    if (this.inputManager.isLeftJustPressed() && this.currentLane > 0) {
       this.currentLane--;
       this.tweens.add({
         targets: this.player,
@@ -1014,7 +1307,7 @@ class GameScene extends Phaser.Scene {
         ease: 'Power2'
       });
     }
-    if (Phaser.Input.Keyboard.JustDown(this.cursors.right) && this.currentLane < 2) {
+    if (this.inputManager.isRightJustPressed() && this.currentLane < 2) {
       this.currentLane++;
       this.tweens.add({
         targets: this.player,
@@ -1037,4 +1330,18 @@ class GameScene extends Phaser.Scene {
       console.log(`  Cars count: ${this.obstacleCars.children.entries.length}`);
     }
   }
+} 
+
+// Make available globally for browser
+if (typeof window !== 'undefined') {
+  window.GameScene = GameScene;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    const { InputManager } = require('../utils/InputManager.js');
+    const MobileControls = require('../utils/MobileControls.js');
+    const DeviceDetector = require('../utils/DeviceDetector.js');
+    const { getMobileNameInput } = require('../utils/MobileNameInput.js');
+    const { highScores } = require('../highScores.js');
+    module.exports = GameScene;
 } 

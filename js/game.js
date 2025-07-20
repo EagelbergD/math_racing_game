@@ -1,3 +1,68 @@
+// Add error handling and debugging
+console.log('🎮 Starting game initialization...');
+
+// Wait for all scripts to load, then check components
+function checkComponents() {
+  const requiredComponents = ['DEBUG_MODE', 'PreloadScene', 'MenuScene', 'GameScene'];
+  console.log('🔍 Checking components...');
+  console.log('🔍 Current window object keys containing "Scene" or "DEBUG":', 
+    Object.keys(window).filter(k => k.includes('Scene') || k.includes('DEBUG') || k.includes('scene')));
+  
+  let allAvailable = true;
+  for (const component of requiredComponents) {
+    const value = window[component];
+    const type = typeof value;
+    if (typeof value === 'undefined') {
+      console.error(`❌ Missing component: ${component}`);
+      console.error(`   Type: ${type}`);
+      console.error(`   Expected: function (for scenes) or boolean (for DEBUG_MODE)`);
+      allAvailable = false;
+    } else {
+      console.log(`✅ Component available: ${component} (${type})`);
+      if (typeof value === 'function') {
+        console.log(`   Constructor name: ${value.name}`);
+      } else {
+        console.log(`   Value: ${value}`);
+      }
+    }
+  }
+  
+  if (allAvailable) {
+    console.log('✅ All components available, initializing game...');
+    initializeGame();
+  } else {
+    console.error('❌ Cannot start game - missing required components');
+    console.error('❌ Try hard refreshing the page (Ctrl+F5 or Cmd+Shift+R)');
+    
+    // Display error to user
+    document.body.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #e74c3c;
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        z-index: 10000;
+        max-width: 400px;
+      ">
+        <h2>Game Loading Error</h2>
+        <p>Some game components failed to load.</p>
+        <p>Please try hard refreshing the page:</p>
+        <p><strong>Ctrl+F5</strong> (Windows/Linux) or <strong>Cmd+Shift+R</strong> (Mac)</p>
+        <p>Check the browser console for details.</p>
+      </div>
+    `;
+  }
+}
+
+// Initialize the game
+function initializeGame() {
+
 // Game configuration
 const config = {
   type: Phaser.AUTO,
@@ -8,7 +73,7 @@ const config = {
     default: 'arcade',
     arcade: {
       gravity: { y: 0 },
-      debug: DEBUG_MODE
+      debug: DEBUG_MODE || false
     }
   },
   scene: [PreloadScene, MenuScene, GameScene],
@@ -16,10 +81,98 @@ const config = {
   fps: {
     target: 60,
     forceSetTimeOut: true
+  },
+  // Mobile-friendly scale configuration
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    // Minimum and maximum sizes
+    min: {
+      width: 320,
+      height: 480
+    },
+    max: {
+      width: 1920,
+      height: 1080
+    }
+  },
+  // Input configuration for mobile
+  input: {
+    activePointers: 3, // Support multi-touch
+    smoothFactor: 0.2 // Smooth touch input
   }
 };
 
-const game = new Phaser.Game(config);
+console.log('🎮 Creating Phaser game with config:', config);
+
+try {
+  const game = new Phaser.Game(config);
+  console.log('✅ Phaser game created successfully!');
+  
+  // Add event listeners to track game lifecycle
+  game.events.on('ready', () => {
+    console.log('🎮 Game ready event fired');
+  });
+  
+  game.events.on('step', () => {
+    if (!window.gameStepLogged) {
+      console.log('🎮 Game step event fired - game is running');
+      window.gameStepLogged = true;
+    }
+  });
+  
+} catch (error) {
+  console.error('❌ Error creating Phaser game:', error);
+  console.error('Stack trace:', error.stack);
+  
+  // Display error to user
+  document.body.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #e74c3c;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      z-index: 10000;
+      max-width: 400px;
+    ">
+      <h2>Phaser Game Error</h2>
+      <p>Error: ${error.message}</p>
+      <p>Check the browser console for more details.</p>
+    </div>
+  `;
+}
+
+// Handle window resize and orientation changes
+window.addEventListener('resize', () => {
+  // Update device detector with new dimensions
+  if (typeof deviceDetector !== 'undefined') {
+    deviceDetector.screenSize = deviceDetector.getScreenSize();
+    deviceDetector.orientation = deviceDetector.getOrientation();
+  }
+  
+  // Resize the game
+  game.scale.resize(window.innerWidth, window.innerHeight);
+});
+
+// Handle orientation change specifically
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    // Update device detector
+    if (typeof deviceDetector !== 'undefined') {
+      deviceDetector.screenSize = deviceDetector.getScreenSize();
+      deviceDetector.orientation = deviceDetector.getOrientation();
+    }
+    
+    // Resize the game
+    game.scale.resize(window.innerWidth, window.innerHeight);
+  }, 100); // Small delay to ensure orientation change is complete
+});
 
 // Add performance monitoring
 let frameCount = 0;
@@ -75,4 +228,11 @@ function updateFPS() {
 // Start FPS monitoring only in debug mode
 if (DEBUG_MODE) {
   updateFPS();
-} 
+}
+}
+
+// Wait for all scripts to load, then check components and start game
+document.addEventListener('DOMContentLoaded', () => {
+  // Small delay to ensure all scripts have finished executing
+  setTimeout(checkComponents, 100);
+}); 

@@ -1,11 +1,16 @@
 // Debug mode flag - set to true to enable FPS display and performance logging
 const DEBUG_MODE = false;
 
+// Make DEBUG_MODE available globally for browser
+if (typeof window !== 'undefined') {
+  window.DEBUG_MODE = DEBUG_MODE;
+}
+
 // High Scores Management System
 class HighScores {
   constructor() {
     this.storageKey = 'mathRacingHighScores';
-    this.speedNames = ['Slow', 'Normal', 'Fast'];
+    this.speedNames = ['Very Slow', 'Slow', 'Normal', 'Fast', 'Very Fast'];
     this.loadScores();
   }
   
@@ -16,9 +21,11 @@ class HighScores {
     } else {
       // Initialize empty scores for each speed
       this.scores = {
+        0: [], // Very Slow
         1: [], // Slow
         2: [], // Normal  
-        3: []  // Fast
+        3: [], // Fast
+        4: []  // Very Fast
       };
     }
   }
@@ -97,7 +104,7 @@ class HighScores {
   }
   
   getSpeedName(speed) {
-    return this.speedNames[speed - 1] || 'Unknown';
+    return this.speedNames[speed] || 'Unknown';
   }
 }
 
@@ -181,5 +188,20 @@ function createHighScoresTable(scene, x, y, speed, title = null) {
         }
       });
     }
+  };
+}
+
+// Make available globally for browser
+if (typeof window !== 'undefined') {
+  window.HighScores = HighScores;
+  window.highScores = highScores;
+  window.createHighScoresTable = createHighScoresTable;
+}
+
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+  module.exports = {
+    highScores,
+    createHighScoresTable,
+    HighScores
   };
 } 

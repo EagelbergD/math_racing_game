@@ -1,8 +1,49 @@
 // Preload assets
 class PreloadScene extends Phaser.Scene {
-  constructor() { super('PreloadScene'); }
+  constructor() { 
+    super('PreloadScene');
+    console.log('🎮 PreloadScene constructor called');
+  }
   
   preload() {
+    console.log('🎮 PreloadScene preload started');
+    
+    // Add loading progress bar
+    const progressBar = this.add.graphics();
+    const progressBox = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillRect(240, 270, 320, 50);
+    
+    const loadingText = this.make.text({
+      x: this.scale.width / 2,
+      y: this.scale.height / 2 - 50,
+      text: 'Loading...',
+      style: {
+        font: '20px monospace',
+        fill: '#ffffff'
+      }
+    });
+    loadingText.setOrigin(0.5, 0.5);
+    
+    // Progress events
+    this.load.on('progress', (value) => {
+      console.log('Loading progress: ' + Math.round(value * 100) + '%');
+      progressBar.clear();
+      progressBar.fillStyle(0xffffff, 1);
+      progressBar.fillRect(250, 280, 300 * value, 30);
+    });
+    
+    this.load.on('complete', () => {
+      console.log('✅ All assets loaded successfully');
+      progressBar.destroy();
+      progressBox.destroy();
+      loadingText.destroy();
+    });
+    
+    this.load.on('loaderror', (file) => {
+      console.error('❌ Failed to load asset:', file.key, file.src);
+    });
+    
     // Car sprites
     this.load.image('playerCar', 'assets/racing/PNG/Cars/car_blue_1.png');
     this.load.image('enemyCar1', 'assets/racing/PNG/Cars/car_red_1.png');
@@ -29,26 +70,31 @@ class PreloadScene extends Phaser.Scene {
     // UI elements
     this.load.image('speedometer', 'assets/racing/PNG/Objects/lights.png');
     
-    // Loading screen
-    this.add.text(this.scale.width/2, this.scale.height/2, 'Loading Racing Assets...', {
-      fontSize: '32px',
+    // Progress bar
+    this.load.image('progressBarBg', 'assets/racing/PNG/Objects/barrier_white.png');
+    this.load.image('progressBarFill', 'assets/racing/PNG/Objects/barrier_red.png');
+    
+    // Loading message
+    this.add.text(this.scale.width/2, this.scale.height/2 + 100, 'Loading Math Racing Quest...', {
+      fontSize: '24px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
-    const progressBar = this.add.graphics();
-    const progressBox = this.add.graphics();
-    progressBox.fillStyle(0x222222, 0.8);
-    progressBox.fillRect(this.scale.width/2 - 160, this.scale.height/2 + 50, 320, 50);
-    
-    this.load.on('progress', (value) => {
-      progressBar.clear();
-      progressBar.fillStyle(0x00ff00, 1);
-      progressBar.fillRect(this.scale.width/2 - 150, this.scale.height/2 + 60, 300 * value, 30);
-    });
+    console.log('🎮 PreloadScene preload setup complete');
   }
   
   create() {
+    console.log('🎮 PreloadScene create called - transitioning to MenuScene');
     this.scene.start('MenuScene');
   }
-} 
+}
+
+// Make available globally for browser and export for Node.js testing
+if (typeof window !== 'undefined') {
+  window.PreloadScene = PreloadScene;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = PreloadScene;
+}

@@ -2,6 +2,14 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <!-- Cache control to prevent caching issues -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Math Racing Quest - Phaser 3</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
   <style>
@@ -13,18 +21,46 @@
       overflow: hidden;
       background: #2c3e50;
       font-family: 'Arial', sans-serif;
+      touch-action: none; /* Prevent default touch behaviors */
+      -webkit-touch-callout: none; /* Disable callout on iOS */
+      -webkit-user-select: none; /* Disable text selection */
+      -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
     }
-    canvas { display: block; margin: auto; }
+    
+    canvas { 
+      display: block; 
+      margin: auto; 
+      touch-action: none; /* Prevent scrolling/zooming on canvas */
+    }
+    
+    /* Support for safe area insets on devices with notches */
+    @supports (padding: max(0px)) {
+      body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+    
+    /* Prevent zoom on input focus for iOS */
+    input, textarea, select {
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
 
 <!-- Load JavaScript files in correct order -->
-<script src="js/highScores.js"></script>
-<script src="js/scenes/PreloadScene.js"></script>
-<script src="js/scenes/MenuScene.js"></script>
-<script src="js/scenes/GameScene.js"></script>
-<script src="js/game.js"></script>
+<script src="js/highScores.js?v=1.0.1"></script>
+<script src="js/utils/DeviceDetector.js?v=1.0.1"></script>
+<script src="js/utils/InputManager.js?v=1.0.1"></script>
+<script src="js/utils/MobileControls.js?v=1.0.1"></script>
+<script src="js/utils/MobileNameInput.js?v=1.0.1"></script>
+<script src="js/scenes/PreloadScene.js?v=1.0.1"></script>
+<script src="js/scenes/MenuScene.js?v=1.0.1"></script>
+<script src="js/scenes/GameScene.js?v=1.0.1"></script>
+<script src="js/game.js?v=1.0.1"></script>
 
 </body>
 </html>
