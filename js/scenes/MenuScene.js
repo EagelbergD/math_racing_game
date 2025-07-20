@@ -95,12 +95,12 @@ class MenuScene extends Phaser.Scene {
       fontStyle: 'italic'
     }).setOrigin(0.5);
     
-    // Menu container with background - responsive positioning and sizing
+    // Menu container with background - responsive positioning and sizing with increased height for mobile
     const menuBg = this.add.graphics();
     menuBg.fillStyle(0x2c3e50, 0.9);
     
     const menuWidth = isPortrait ? Math.min(480, this.scale.width - 60) : 700;
-    const menuHeight = this.inputManager.shouldUseMobileLayout() ? (isPortrait ? 300 : 280) : 240;
+    const menuHeight = this.inputManager.shouldUseMobileLayout() ? (isPortrait ? 340 : 280) : 240; // Increased portrait height from 300 to 340
     const menuTop = isPortrait ? this.scale.height * 0.35 : 
                    (this.inputManager.shouldUseMobileLayout() ? this.scale.height/2 - 100 : this.scale.height/2 - 80);
     
@@ -114,11 +114,11 @@ class MenuScene extends Phaser.Scene {
       this.add.image(this.scale.width/2 + 280, this.scale.height/2 + 10, 'enemyCar1').setScale(1.0).setDepth(1);
     }
     
-    // Menu options - responsive positioning and sizing
+    // Menu options - responsive positioning and sizing with increased mobile spacing
     const optionsFontSize = isPortrait ? '24px' : '28px';
     const startGameY = isPortrait ? menuTop + 50 : this.scale.height/2 - 40;
-    const maxMultY = isPortrait ? menuTop + 120 : this.scale.height/2 + 10;
-    const gameSpeedY = isPortrait ? menuTop + 170 : this.scale.height/2 + 60;
+    const maxMultY = isPortrait ? menuTop + 140 : this.scale.height/2 + 10; // Increased from +120 to +140 to match button spacing
+    const gameSpeedY = isPortrait ? menuTop + 210 : this.scale.height/2 + 60; // Increased from +170 to +210 to match button spacing
     
     // Menu options - hide Start Game text on mobile since we have a button
     if (!this.inputManager.shouldUseMobileLayout()) {
@@ -141,12 +141,12 @@ class MenuScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
-    // Instructions - adapt based on device and orientation
+    // Instructions - adapt based on device and orientation with adjusted position
     const instructionText = this.inputManager.shouldUseMobileLayout() 
       ? 'Use touch controls to navigate and select'
       : 'Use ↑↓ to select, ← → to change, ENTER to confirm';
     
-    const instructionsY = isPortrait ? menuTop + 230 : this.scale.height/2 + 120;
+    const instructionsY = isPortrait ? menuTop + 270 : this.scale.height/2 + 120; // Increased from +230 to +270 for mobile
     const instructionsFontSize = isPortrait ? '16px' : '18px';
     
     this.instructionsText = this.add.text(this.scale.width/2, instructionsY, instructionText, {
@@ -248,9 +248,9 @@ class MenuScene extends Phaser.Scene {
       }
     );
     
-    // Create value adjustment buttons for max multiplier - positioned outside text with responsive width
+    // Create value adjustment buttons for max multiplier - increased spacing
     const maxMultTextWidth = isPortrait ? 240 : 280;
-    const maxMultY = isPortrait ? menuTop + 120 : this.scale.height/2 + 10;
+    const maxMultY = isPortrait ? menuTop + 140 : this.scale.height/2 + 10; // Increased from +120 to +140
     this.mobileControls.createValueButtonsOutside(
       'maxMult', 
       this.scale.width/2, 
@@ -265,9 +265,9 @@ class MenuScene extends Phaser.Scene {
       }
     );
     
-    // Create value adjustment buttons for game speed - positioned outside text with responsive width
+    // Create value adjustment buttons for game speed - increased spacing
     const gameSpeedTextWidth = isPortrait ? 240 : 280;
-    const gameSpeedY = isPortrait ? menuTop + 170 : this.scale.height/2 + 60;
+    const gameSpeedY = isPortrait ? menuTop + 210 : this.scale.height/2 + 60; // Increased from +170 to +210
     this.mobileControls.createValueButtonsOutside(
       'gameSpeed', 
       this.scale.width/2, 
