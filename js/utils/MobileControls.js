@@ -363,30 +363,29 @@ class MobileControls {
     });
   }
   
-  // Create directional buttons for game controls - extra large buttons for car control
+  // Create directional buttons for game controls - appropriately sized buttons for car control
   createGameDirectionalButtons() {
     if (!this.deviceInfo.shouldUseMobileLayout) return;
     
     const safeArea = this.deviceInfo.safeArea;
-    const carButtonSize = this.buttonSize * 2.2; // Make car control buttons much larger (120% bigger)
-    const spacing = carButtonSize * 0.08; // Slightly reduced spacing for the larger buttons
+    const carButtonSize = this.buttonSize * 1.6; // Reduced from 2.2 to 1.6 - still large but not overwhelming
     
-    // Position both buttons in bottom left corner, side by side - moved down to clear blue car
-    const leftX = safeArea.left + carButtonSize/2 + 20;
-    const rightX = leftX + carButtonSize + spacing;
-    const buttonsY = this.scene.scale.height - safeArea.bottom - carButtonSize/2 - 40; // Moved down 20px more
+    // Position buttons on opposite sides of screen to avoid blocking the car
+    const leftX = safeArea.left + carButtonSize/2 + 20; // Left button stays on left side
+    const rightX = this.scene.scale.width - safeArea.right - carButtonSize/2 - 20; // Right button on right side with similar offset
+    const buttonsY = this.scene.scale.height - safeArea.bottom - carButtonSize/2 - 40; // Same Y position for both
     
-    // Left button - extra large for excellent car control
+    // Left button - positioned on left side
     const leftButton = this.createButton('left', leftX, buttonsY, carButtonSize, carButtonSize, '◀', (state) => {
       this.inputState.left = (state === 'down');
     });
     
-    // Right button - extra large for excellent car control
+    // Right button - positioned on right side
     const rightButton = this.createButton('right', rightX, buttonsY, carButtonSize, carButtonSize, '▶', (state) => {
       this.inputState.right = (state === 'down');
     });
     
-    // Update font size for larger buttons
+    // Update font size for buttons
     if (leftButton && leftButton.text) {
       leftButton.text.setFontSize(Math.floor(carButtonSize * 0.4));
     }
@@ -394,10 +393,10 @@ class MobileControls {
       rightButton.text.setFontSize(Math.floor(carButtonSize * 0.4));
     }
     
-    // Pause button (top right) - positioned to avoid UI panel
+    // Pause button (top right) - positioned to avoid UI panel and safe areas
     const pauseButtonSize = this.buttonSize; // Keep pause button normal size
     const pauseX = this.scene.scale.width - safeArea.right - pauseButtonSize/2 - 20;
-    const pauseY = safeArea.top + pauseButtonSize/2 + 160; // Moved down slightly more for better spacing
+    const pauseY = safeArea.top + pauseButtonSize/2 + 180; // Increased from 160 to 180 for better spacing with UI panel
     
     this.createButton('pause', pauseX, pauseY, pauseButtonSize, pauseButtonSize, '⏸', (state) => {
       if (state === 'down') {

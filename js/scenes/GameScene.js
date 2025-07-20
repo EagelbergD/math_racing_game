@@ -107,8 +107,8 @@ class GameScene extends Phaser.Scene {
     
     // Create road in the center - narrower road to show more grass
     const roadWidth = this.isPortrait ? 
-      Math.min(this.scale.width * 0.68, 360) : // Portrait: 68% width max 360px (more grass visible)
-      Math.min(480, this.scale.width * 0.45);    // Landscape: max 480px or 45% width (more grass)
+      Math.min(this.scale.width * 0.58, 320) : // Portrait: reduced from 68% to 58% width, max 320px (much more grass visible)
+      Math.min(420, this.scale.width * 0.38);    // Landscape: reduced from 45% to 38% width, max 420px (more grass)
     const roadX = (this.scale.width - roadWidth) / 2;
     this.roadBg = this.add.tileSprite(roadX, 0, roadWidth, this.scale.height, 'roadTile');
     this.roadBg.setOrigin(0, 0);
@@ -166,18 +166,25 @@ class GameScene extends Phaser.Scene {
   
   createUI() {
     
-    // UI Background panel - responsive height for portrait
+    // Get safe area for mobile devices to avoid notches and navigation
+    const safeAreaTop = this.inputManager.shouldUseMobileLayout() ? 
+      Math.max(20, parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0')) : 0;
+    const safeAreaBottom = this.inputManager.shouldUseMobileLayout() ? 
+      Math.max(20, parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0')) : 0;
+    
+    // UI Background panel - responsive height for portrait with safe area consideration
     const uiPanel = this.add.graphics();
     uiPanel.fillStyle(0x2c3e50, 0.9);
     const uiHeight = this.isPortrait ? 140 : 120; // Taller on portrait for better text spacing
-    uiPanel.fillRoundedRect(10, 10, this.scale.width - 20, uiHeight, 10);
+    const uiTop = 10 + safeAreaTop; // Add safe area offset
+    uiPanel.fillRoundedRect(10, uiTop, this.scale.width - 20, uiHeight, 10);
     uiPanel.lineStyle(2, 0xff6b35, 1);
-    uiPanel.strokeRoundedRect(10, 10, this.scale.width - 20, uiHeight, 10);
+    uiPanel.strokeRoundedRect(10, uiTop, this.scale.width - 20, uiHeight, 10);
     uiPanel.setDepth(10);
     
-    // Question text with enhanced styling - responsive font size
+    // Question text with enhanced styling - responsive font size with safe area offset
     const questionFontSize = this.isPortrait ? '28px' : '36px';
-    const questionY = this.isPortrait ? 60 : 50;
+    const questionY = (this.isPortrait ? 60 : 50) + safeAreaTop;
     this.questionText = this.add.text(this.scale.width/2, questionY, '', {
       fontSize: questionFontSize,
       color: '#ffffff',
@@ -193,13 +200,13 @@ class GameScene extends Phaser.Scene {
       }
     }).setOrigin(0.5).setDepth(11);
     
-    // Status texts with responsive sizing and positioning
+    // Status texts with responsive sizing and positioning with safe area offset
     const statusFontSize = this.isPortrait ? '20px' : '24px';
     const smallStatusFontSize = this.isPortrait ? '16px' : '18px';
-    const livesY = this.isPortrait ? 110 : 90;
-    const scoreY = this.isPortrait ? 30 : 30;
-    const speedY = this.isPortrait ? 30 : 30;
-    const levelY = this.isPortrait ? 55 : 60;
+    const livesY = (this.isPortrait ? 110 : 90) + safeAreaTop;
+    const scoreY = 30 + safeAreaTop;
+    const speedY = 30 + safeAreaTop;
+    const levelY = (this.isPortrait ? 55 : 60) + safeAreaTop;
     
     // Lives display with heart-like styling
     this.livesText = this.add.text(30, livesY, `❤️ Lives: ${this.lives}`, {
@@ -234,7 +241,7 @@ class GameScene extends Phaser.Scene {
       ? 'Use touch controls to change lanes'
       : 'Use ← → to change lanes';
     
-    this.instructionsText = this.add.text(this.scale.width - 30, 90, instructionText, {
+    this.instructionsText = this.add.text(this.scale.width - 30, 90 + safeAreaTop, instructionText, {
       fontSize: '16px',
       color: '#bdc3c7',
       fontStyle: 'italic'
@@ -1139,8 +1146,10 @@ class GameScene extends Phaser.Scene {
       this.gameOverMobileControls = new MobileControls(this);
       
       // Calculate safe button positions
-      const buttonY1 = Math.min(this.scale.height/2 + 40, this.scale.height - 200); // Race Again
-      const buttonY2 = Math.min(this.scale.height/2 + 100, this.scale.height - 140); // Main Menu
+      const safeAreaBottom = this.inputManager.shouldUseMobileLayout() ? 
+        Math.max(20, parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0')) : 0;
+      const buttonY1 = Math.min(this.scale.height/2 + 40, this.scale.height - 200 - safeAreaBottom); // Race Again
+      const buttonY2 = Math.min(this.scale.height/2 + 100, this.scale.height - 140 - safeAreaBottom); // Main Menu
       
       // Create direct Race Again button - positioned to avoid high scores table
       const raceAgainButton = this.gameOverMobileControls.createPrimaryButton(
