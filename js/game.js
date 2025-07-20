@@ -66,8 +66,8 @@ function initializeGame() {
 // Game configuration
 const config = {
   type: Phaser.AUTO,
-  width: window.innerWidth,
-  height: window.innerHeight,
+  width: 800, // Base game width
+  height: 600, // Base game height
   backgroundColor: '#2c3e50',
   physics: {
     default: 'arcade',
@@ -82,10 +82,13 @@ const config = {
     target: 60,
     forceSetTimeOut: true
   },
-  // Mobile-friendly scale configuration
+  // Improved mobile-friendly scale configuration
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT, // Use FIT instead of RESIZE for better mobile scaling
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    // Set responsive dimensions based on device
+    width: window.innerWidth > window.innerHeight ? 800 : 540, // Landscape : Portrait base width
+    height: window.innerWidth > window.innerHeight ? 600 : 960, // Landscape : Portrait base height
     // Minimum and maximum sizes
     min: {
       width: 320,
@@ -93,7 +96,7 @@ const config = {
     },
     max: {
       width: 1920,
-      height: 1080
+      height: 1200
     }
   },
   // Input configuration for mobile
@@ -156,8 +159,13 @@ window.addEventListener('resize', () => {
     deviceDetector.orientation = deviceDetector.getOrientation();
   }
   
-  // Resize the game
-  game.scale.resize(window.innerWidth, window.innerHeight);
+  // Update game scale for new dimensions
+  const isPortrait = window.innerHeight > window.innerWidth;
+  const newWidth = isPortrait ? 540 : 800;
+  const newHeight = isPortrait ? 960 : 600;
+  
+  game.scale.setGameSize(newWidth, newHeight);
+  game.scale.refresh();
 });
 
 // Handle orientation change specifically
@@ -169,8 +177,22 @@ window.addEventListener('orientationchange', () => {
       deviceDetector.orientation = deviceDetector.getOrientation();
     }
     
-    // Resize the game
-    game.scale.resize(window.innerWidth, window.innerHeight);
+    // Update game scale for new orientation
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const newWidth = isPortrait ? 540 : 800;
+    const newHeight = isPortrait ? 960 : 600;
+    
+    game.scale.setGameSize(newWidth, newHeight);
+    game.scale.refresh();
+    
+    // Notify scenes about orientation change
+    if (game.scene.getScenes) {
+      game.scene.getScenes().forEach(scene => {
+        if (scene.handleOrientationChange) {
+          scene.handleOrientationChange();
+        }
+      });
+    }
   }, 100); // Small delay to ensure orientation change is complete
 });
 

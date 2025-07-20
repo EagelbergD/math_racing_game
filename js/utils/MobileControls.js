@@ -319,8 +319,8 @@ class MobileControls {
   
   // Create a large primary action button (like Start Game)
   createPrimaryButton(id, x, y, text, callback) {
-    const buttonWidth = this.buttonSize * 3;
-    const buttonHeight = this.buttonSize;
+    const buttonWidth = this.buttonSize * 4; // Wider for better touch
+    const buttonHeight = this.buttonSize * 1.2; // Taller for better touch
     
     return this.createDirectButton(id, x, y, buttonWidth, buttonHeight, text, callback, {
       normal: {
@@ -342,8 +342,8 @@ class MobileControls {
   
   // Create secondary action buttons (like Resume, Main Menu)
   createSecondaryButton(id, x, y, text, callback) {
-    const buttonWidth = this.buttonSize * 2.5;
-    const buttonHeight = this.buttonSize * 0.8;
+    const buttonWidth = this.buttonSize * 3; // Wider for better touch
+    const buttonHeight = this.buttonSize; // Standard height for good touch
     
     return this.createDirectButton(id, x, y, buttonWidth, buttonHeight, text, callback, {
       normal: {
@@ -363,34 +363,43 @@ class MobileControls {
     });
   }
   
-  // Create directional buttons for game controls - improved positioning
+  // Create directional buttons for game controls - extra large buttons for car control
   createGameDirectionalButtons() {
     if (!this.deviceInfo.shouldUseMobileLayout) return;
     
     const safeArea = this.deviceInfo.safeArea;
-    const buttonSize = this.buttonSize;
-    const spacing = buttonSize * 0.1; // Reduced spacing for closer together buttons
+    const carButtonSize = this.buttonSize * 2.2; // Make car control buttons much larger (120% bigger)
+    const spacing = carButtonSize * 0.08; // Slightly reduced spacing for the larger buttons
     
     // Position both buttons in bottom left corner, side by side
-    const leftX = safeArea.left + buttonSize/2 + 20;
-    const rightX = leftX + buttonSize + spacing;
-    const buttonsY = this.scene.scale.height - safeArea.bottom - buttonSize/2 - 20;
+    const leftX = safeArea.left + carButtonSize/2 + 20;
+    const rightX = leftX + carButtonSize + spacing;
+    const buttonsY = this.scene.scale.height - safeArea.bottom - carButtonSize/2 - 20;
     
-    // Left button
-    this.createButton('left', leftX, buttonsY, buttonSize, buttonSize, '◀', (state) => {
+    // Left button - extra large for excellent car control
+    const leftButton = this.createButton('left', leftX, buttonsY, carButtonSize, carButtonSize, '◀', (state) => {
       this.inputState.left = (state === 'down');
     });
     
-    // Right button - immediately next to left button
-    this.createButton('right', rightX, buttonsY, buttonSize, buttonSize, '▶', (state) => {
+    // Right button - extra large for excellent car control
+    const rightButton = this.createButton('right', rightX, buttonsY, carButtonSize, carButtonSize, '▶', (state) => {
       this.inputState.right = (state === 'down');
     });
     
-    // Pause button (top right) - moved down to avoid UI panel overlap
-    const pauseX = this.scene.scale.width - safeArea.right - buttonSize/2 - 20;
-    const pauseY = safeArea.top + buttonSize/2 + 140; // Moved down from 20 to 140 to clear UI panel
+    // Update font size for larger buttons
+    if (leftButton && leftButton.text) {
+      leftButton.text.setFontSize(Math.floor(carButtonSize * 0.4));
+    }
+    if (rightButton && rightButton.text) {
+      rightButton.text.setFontSize(Math.floor(carButtonSize * 0.4));
+    }
     
-    this.createButton('pause', pauseX, pauseY, buttonSize, buttonSize, '⏸', (state) => {
+    // Pause button (top right) - moved down to avoid UI panel overlap
+    const pauseButtonSize = this.buttonSize; // Keep pause button normal size
+    const pauseX = this.scene.scale.width - safeArea.right - pauseButtonSize/2 - 20;
+    const pauseY = safeArea.top + pauseButtonSize/2 + 140; // Moved down from 20 to 140 to clear UI panel
+    
+    this.createButton('pause', pauseX, pauseY, pauseButtonSize, pauseButtonSize, '⏸', (state) => {
       if (state === 'down') {
         this.inputState.escape = true;
       }
@@ -432,8 +441,8 @@ class MobileControls {
   createValueButtonsOutside(id, textX, textY, textWidth, getCurrentValue, minValue, maxValue, callback) {
     if (!this.deviceInfo.shouldUseMobileLayout) return null;
     
-    const buttonSize = this.buttonSize * 0.7; // Smaller buttons for less intrusion
-    const spacing = textWidth/2 + buttonSize/2 + 20; // Position outside the text width
+    const buttonSize = this.buttonSize * 1.1; // Larger buttons for better touch
+    const spacing = textWidth/2 + buttonSize/2 + 25; // Position outside the text width with more space
     
     // Decrease button (left side of text)
     this.createButton(id + '_decrease', textX - spacing, textY, buttonSize, buttonSize, '−', (state) => {

@@ -4,6 +4,9 @@ class GameScene extends Phaser.Scene {
   
   create() {
     const deviceDetector = new DeviceDetector();
+    // Define orientation early for use throughout create method and store as class property
+    this.isPortrait = this.scale.height > this.scale.width;
+    
     // Initialize input manager
     this.inputManager = new InputManager(this, deviceDetector);
     
@@ -13,11 +16,24 @@ class GameScene extends Phaser.Scene {
       this.inputManager.setMobileControls(this.mobileControls);
     }
     
-    this.maxMult = this.registry.get('maxMult') || 10;
-    this.selectedSpeed = this.registry.get('gameSpeed') ?? 2;
-    this.lives = 3;
-    this.score = 0;
-    this.speed = 150;
+    // Restore game state if coming from orientation change, otherwise use defaults
+    const savedGameState = this.registry.get('gameState');
+    if (savedGameState) {
+      this.lives = savedGameState.lives;
+      this.score = savedGameState.score;
+      this.speed = savedGameState.speed;
+      this.gameSpeed = savedGameState.gameSpeed;
+      this.maxMult = savedGameState.maxMult;
+      this.selectedSpeed = savedGameState.selectedSpeed;
+      // Clear the saved state
+      this.registry.set('gameState', null);
+    } else {
+      this.maxMult = this.registry.get('maxMult') || 10;
+      this.selectedSpeed = this.registry.get('gameSpeed') ?? 2;
+      this.lives = 3;
+      this.score = 0;
+      this.speed = 150;
+    }
     
     // Set game speed based on selection: 0=Very Slow, 1=Slow, 2=Normal, 3=Fast, 4=Very Fast
     const speedMap = { 0: 15, 1: 25, 2: 50, 3: 100, 4: 150 };
@@ -29,9 +45,10 @@ class GameScene extends Phaser.Scene {
     // Create scrolling road background (this will set up lanes)
     this.createRoadBackground();
     
-    // Player car (positioned after road background creation)
+    // Player car (positioned after road background creation) - appropriately sized for mobile view
     this.player = this.physics.add.sprite(this.lanes[this.currentLane], this.scale.height - 100, 'playerCar');
-    this.player.setScale(1.2);
+    const carScale = this.isPortrait ? 0.8 : 0.9; // Good size for mobile - not too tiny, not too big
+    this.player.setScale(carScale);
     this.player.body.allowGravity = false;
     this.player.setImmovable(true);
     this.player.setDepth(10); // Higher depth to ensure visibility
@@ -60,14 +77,38 @@ class GameScene extends Phaser.Scene {
     this.nextQuestion();
   }
   
+  // Handle orientation changes
+  handleOrientationChange() {
+    // Update orientation property
+    this.isPortrait = this.scale.height > this.scale.width;
+    
+    // Recreate the scene layout for new orientation while preserving game state
+    const currentGameState = {
+      lives: this.lives,
+      score: this.score,
+      speed: this.speed,
+      gameSpeed: this.gameSpeed,
+      maxMult: this.maxMult,
+      selectedSpeed: this.selectedSpeed
+    };
+    
+    // Store the state in registry
+    this.registry.set('gameState', currentGameState);
+    
+    // Restart the scene
+    this.scene.restart();
+  }
+  
   createRoadBackground() {
     // Create grass background on sides (use a cleaner grass tile)
     this.grassBg = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'grassTile');
     this.grassBg.setOrigin(0, 0);
     this.grassBg.setDepth(-3);
     
-    // Create road in the center (fixed width for consistent lane positioning)
-    const roadWidth = Math.min(600, this.scale.width * 0.5); // Max 600px wide or 50% of screen
+    // Create road in the center - balanced road/grass ratio with good lane spacing
+    const roadWidth = this.isPortrait ? 
+      Math.min(this.scale.width * 0.75, 400) : // Portrait: 75% width max 400px (better road/grass balance)
+      Math.min(550, this.scale.width * 0.5);    // Landscape: max 550px or 50% width (restored ratio)
     const roadX = (this.scale.width - roadWidth) / 2;
     this.roadBg = this.add.tileSprite(roadX, 0, roadWidth, this.scale.height, 'roadTile');
     this.roadBg.setOrigin(0, 0);
@@ -124,17 +165,21 @@ class GameScene extends Phaser.Scene {
   }
   
   createUI() {
-    // UI Background panel
+    
+    // UI Background panel - responsive height for portrait
     const uiPanel = this.add.graphics();
     uiPanel.fillStyle(0x2c3e50, 0.9);
-    uiPanel.fillRoundedRect(10, 10, this.scale.width - 20, 120, 10);
+    const uiHeight = this.isPortrait ? 140 : 120; // Taller on portrait for better text spacing
+    uiPanel.fillRoundedRect(10, 10, this.scale.width - 20, uiHeight, 10);
     uiPanel.lineStyle(2, 0xff6b35, 1);
-    uiPanel.strokeRoundedRect(10, 10, this.scale.width - 20, 120, 10);
+    uiPanel.strokeRoundedRect(10, 10, this.scale.width - 20, uiHeight, 10);
     uiPanel.setDepth(10);
     
-    // Question text with enhanced styling
-    this.questionText = this.add.text(this.scale.width/2, 50, '', {
-      fontSize: '36px',
+    // Question text with enhanced styling - responsive font size
+    const questionFontSize = this.isPortrait ? '28px' : '36px';
+    const questionY = this.isPortrait ? 60 : 50;
+    this.questionText = this.add.text(this.scale.width/2, questionY, '', {
+      fontSize: questionFontSize,
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#ff6b35',
@@ -148,30 +193,38 @@ class GameScene extends Phaser.Scene {
       }
     }).setOrigin(0.5).setDepth(11);
     
+    // Status texts with responsive sizing and positioning
+    const statusFontSize = this.isPortrait ? '20px' : '24px';
+    const smallStatusFontSize = this.isPortrait ? '16px' : '18px';
+    const livesY = this.isPortrait ? 110 : 90;
+    const scoreY = this.isPortrait ? 30 : 30;
+    const speedY = this.isPortrait ? 30 : 30;
+    const levelY = this.isPortrait ? 55 : 60;
+    
     // Lives display with heart-like styling
-    this.livesText = this.add.text(30, 90, `❤️ Lives: ${this.lives}`, {
-      fontSize: '24px',
+    this.livesText = this.add.text(30, livesY, `❤️ Lives: ${this.lives}`, {
+      fontSize: statusFontSize,
       color: '#e74c3c',
       fontStyle: 'bold'
     }).setDepth(11);
     
     // Score display with trophy styling
-    this.scoreText = this.add.text(30, 30, `🏆 Score: ${this.score}`, {
-      fontSize: '24px',
+    this.scoreText = this.add.text(30, scoreY, `🏆 Score: ${this.score}`, {
+      fontSize: statusFontSize,
       color: '#f1c40f',
       fontStyle: 'bold'
     }).setDepth(11);
     
     // Speed display
-    this.speedText = this.add.text(this.scale.width - 30, 30, `⚡ Speed: ${this.gameSpeed}`, {
-      fontSize: '20px',
+    this.speedText = this.add.text(this.scale.width - 30, speedY, `⚡ Speed: ${this.gameSpeed}`, {
+      fontSize: this.isPortrait ? '18px' : '20px',
       color: '#3498db',
       fontStyle: 'bold'
     }).setOrigin(1, 0).setDepth(11);
     
     // Level indicator
-    this.levelText = this.add.text(this.scale.width - 30, 60, `🎯 Max: ${this.maxMult}`, {
-      fontSize: '18px',
+    this.levelText = this.add.text(this.scale.width - 30, levelY, `🎯 Max: ${this.maxMult}`, {
+      fontSize: smallStatusFontSize,
       color: '#9b59b6',
       fontStyle: 'bold'
     }).setOrigin(1, 0).setDepth(11);
@@ -211,7 +264,7 @@ class GameScene extends Phaser.Scene {
     const side = Phaser.Math.RND.pick(['left', 'right']);
     const x = side === 'left' ? 50 : this.scale.width - 50;
     const decoration = this.add.image(x, -50, Phaser.Math.RND.pick(['tree', 'cone', 'barrier']));
-    decoration.setScale(0.8);
+    decoration.setScale(this.isPortrait ? 0.4 : 0.5); // Much smaller decorations for zoomed out view
     
     this.decorations.add(decoration);
     this.physics.world.enable(decoration);
@@ -276,9 +329,10 @@ class GameScene extends Phaser.Scene {
       const x = this.lanes[idx];
       const y = 100; // Start cars at visible position
       
-      // Create obstacle car (using regular sprite, not physics)
+      // Create obstacle car (using regular sprite, not physics) - appropriately sized for mobile view
       const car = this.add.sprite(x, y, carSprites[idx]);
-      car.setScale(1.1);
+      const carScale = this.isPortrait ? 0.8 : 0.9; // Good size - consistent with player car
+      car.setScale(carScale);
       car.correct = (answer === this.correct);
       car.setDepth(50); // Much higher depth to ensure visibility
       
@@ -289,13 +343,13 @@ class GameScene extends Phaser.Scene {
       else if (carSprites[idx] === 'enemyCar3') bgColor = '#006400'; // Dark green for green car
       
       const answerText = this.add.text(x, y, `${answer}`, {
-        fontSize: '32px',
+        fontSize: this.isPortrait ? '28px' : '32px', // Good text size to match car size
         color: '#ffffff',
         fontStyle: 'bold',
         backgroundColor: bgColor,
-        padding: { x: 12, y: 8 },
+        padding: { x: 10, y: 7 }, // Good padding for readability
         stroke: '#000000',
-        strokeThickness: 4
+        strokeThickness: 3
       }).setOrigin(0.5);
       answerText.setDepth(100); // Very high depth for text visibility
       

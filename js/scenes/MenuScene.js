@@ -33,10 +33,23 @@ class MenuScene extends Phaser.Scene {
       throw error;
     }
     
-    // Static racing background
-    this.add.image(this.scale.width/2, this.scale.height/2, 'racingBg').setScale(
-      Math.max(this.scale.width / 800, this.scale.height / 600)
-    );
+    // Static racing background - special scaling for mobile portrait
+    this.backgroundImage = this.add.image(this.scale.width/2, this.scale.height/2, 'racingBg');
+    
+    // Apply full-screen scaling only for mobile portrait mode
+    const isMobilePortrait = this.inputManager.shouldUseMobileLayout() && this.scale.height > this.scale.width;
+    
+    if (isMobilePortrait) {
+      // Mobile portrait: scale to cover entire screen (no empty areas)
+      const scaleX = this.scale.width / this.backgroundImage.width;
+      const scaleY = this.scale.height / this.backgroundImage.height;
+      const scale = Math.max(scaleX, scaleY); // Use larger scale to ensure full coverage
+      this.backgroundImage.setScale(scale);
+    } else {
+      // Desktop/landscape: use original scaling method
+      const bgScale = Math.max(this.scale.width / 800, this.scale.height / 600);
+      this.backgroundImage.setScale(bgScale);
+    }
     
     // Add semi-transparent overlay
     const overlay = this.add.graphics();
@@ -52,9 +65,13 @@ class MenuScene extends Phaser.Scene {
     // High scores display state
     this.highScoresSpeed = 2; // Default to Normal speed for high scores display
     
-    // Title with racing theme
-    const title = this.add.text(this.scale.width/2, this.scale.height/2 - 200, 'MATH RACING QUEST', {
-      fontSize: '48px',
+    // Title with racing theme - responsive sizing and positioning
+    const isPortrait = this.scale.height > this.scale.width;
+    const titleFontSize = isPortrait ? '36px' : '48px';
+    const titleY = isPortrait ? this.scale.height * 0.15 : this.scale.height/2 - 200;
+    
+    const title = this.add.text(this.scale.width/2, titleY, 'MATH RACING QUEST', {
+      fontSize: titleFontSize,
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#ff6b35',
@@ -69,61 +86,80 @@ class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
     
     // Subtitle
-    this.add.text(this.scale.width/2, this.scale.height/2 - 150, 'Race through math problems!', {
-      fontSize: '24px',
+    const subtitleFontSize = isPortrait ? '20px' : '24px';
+    const subtitleY = isPortrait ? this.scale.height * 0.2 : this.scale.height/2 - 150;
+    
+    this.add.text(this.scale.width/2, subtitleY, 'Race through math problems!', {
+      fontSize: subtitleFontSize,
       color: '#ecf0f1',
       fontStyle: 'italic'
     }).setOrigin(0.5);
     
-    // Menu container with background (wider to accommodate cars, taller for mobile Start Game button)
+    // Menu container with background - responsive positioning and sizing
     const menuBg = this.add.graphics();
     menuBg.fillStyle(0x2c3e50, 0.9);
-    const menuHeight = this.inputManager.shouldUseMobileLayout() ? 280 : 240; // Taller on mobile
-    const menuTop = this.inputManager.shouldUseMobileLayout() ? -100 : -80; // Higher on mobile
-    menuBg.fillRoundedRect(this.scale.width/2 - 350, this.scale.height/2 + menuTop, 700, menuHeight, 20);
-    menuBg.lineStyle(3, 0xff6b35, 1);
-    menuBg.strokeRoundedRect(this.scale.width/2 - 350, this.scale.height/2 + menuTop, 700, menuHeight, 20);
     
-    // Add decorative cars on the sides of the menu options
-    this.add.image(this.scale.width/2 - 280, this.scale.height/2 + 10, 'playerCar').setScale(1.0).setDepth(1);
-    this.add.image(this.scale.width/2 + 280, this.scale.height/2 + 10, 'enemyCar1').setScale(1.0).setDepth(1);
+    const menuWidth = isPortrait ? Math.min(480, this.scale.width - 60) : 700;
+    const menuHeight = this.inputManager.shouldUseMobileLayout() ? (isPortrait ? 300 : 280) : 240;
+    const menuTop = isPortrait ? this.scale.height * 0.35 : 
+                   (this.inputManager.shouldUseMobileLayout() ? this.scale.height/2 - 100 : this.scale.height/2 - 80);
+    
+    menuBg.fillRoundedRect(this.scale.width/2 - menuWidth/2, menuTop, menuWidth, menuHeight, 20);
+    menuBg.lineStyle(3, 0xff6b35, 1);
+    menuBg.strokeRoundedRect(this.scale.width/2 - menuWidth/2, menuTop, menuWidth, menuHeight, 20);
+    
+    // Add decorative cars on the sides of the menu options - hide on portrait for space
+    if (!isPortrait) {
+      this.add.image(this.scale.width/2 - 280, this.scale.height/2 + 10, 'playerCar').setScale(1.0).setDepth(1);
+      this.add.image(this.scale.width/2 + 280, this.scale.height/2 + 10, 'enemyCar1').setScale(1.0).setDepth(1);
+    }
+    
+    // Menu options - responsive positioning and sizing
+    const optionsFontSize = isPortrait ? '24px' : '28px';
+    const startGameY = isPortrait ? menuTop + 50 : this.scale.height/2 - 40;
+    const maxMultY = isPortrait ? menuTop + 120 : this.scale.height/2 + 10;
+    const gameSpeedY = isPortrait ? menuTop + 170 : this.scale.height/2 + 60;
     
     // Menu options - hide Start Game text on mobile since we have a button
     if (!this.inputManager.shouldUseMobileLayout()) {
-      this.startGameText = this.add.text(this.scale.width/2, this.scale.height/2 - 40, 'START GAME', {
-        fontSize: '32px',
+      this.startGameText = this.add.text(this.scale.width/2, startGameY, 'START GAME', {
+        fontSize: isPortrait ? '28px' : '32px',
         color: '#ffffff',
         fontStyle: 'bold'
       }).setOrigin(0.5);
     }
     
-    this.maxMultText = this.add.text(this.scale.width/2, this.scale.height/2 + 10, `Max Multiplier: ${this.maxMult}`, {
-      fontSize: '28px',
+    this.maxMultText = this.add.text(this.scale.width/2, maxMultY, `Max Multiplier: ${this.maxMult}`, {
+      fontSize: optionsFontSize,
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
-    this.gameSpeedText = this.add.text(this.scale.width/2, this.scale.height/2 + 60, `Game Speed: ${this.speedNames[this.gameSpeed]}`, {
-      fontSize: '28px',
+    this.gameSpeedText = this.add.text(this.scale.width/2, gameSpeedY, `Game Speed: ${this.speedNames[this.gameSpeed]}`, {
+      fontSize: optionsFontSize,
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
-    // Instructions - adapt based on device
+    // Instructions - adapt based on device and orientation
     const instructionText = this.inputManager.shouldUseMobileLayout() 
       ? 'Use touch controls to navigate and select'
       : 'Use ↑↓ to select, ← → to change, ENTER to confirm';
     
-    this.instructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 120, instructionText, {
-      fontSize: '18px',
+    const instructionsY = isPortrait ? menuTop + 230 : this.scale.height/2 + 120;
+    const instructionsFontSize = isPortrait ? '16px' : '18px';
+    
+    this.instructionsText = this.add.text(this.scale.width/2, instructionsY, instructionText, {
+      fontSize: instructionsFontSize,
       color: '#bdc3c7',
       fontStyle: 'italic'
     }).setOrigin(0.5);
     
     // High scores toggle instructions - only show on desktop
     if (!this.inputManager.shouldUseMobileLayout()) {
-      this.highScoresInstructionsText = this.add.text(this.scale.width/2, this.scale.height/2 + 145, 'Use 9/0 to toggle high scores speed', {
-        fontSize: '16px',
+      const highScoresInstructionsY = isPortrait ? menuTop + 255 : this.scale.height/2 + 145;
+      this.highScoresInstructionsText = this.add.text(this.scale.width/2, highScoresInstructionsY, 'Use 9/0 to toggle high scores speed', {
+        fontSize: '14px',
         color: '#95a5a6',
         fontStyle: 'italic'
       }).setOrigin(0.5);
@@ -150,14 +186,40 @@ class MenuScene extends Phaser.Scene {
     this.updateMenuHighlight();
   }
   
+  // Handle orientation changes
+  handleOrientationChange() {
+    // Update background scaling for new orientation if it exists
+    if (this.backgroundImage) {
+      const isMobilePortrait = this.inputManager.shouldUseMobileLayout() && this.scale.height > this.scale.width;
+      
+      if (isMobilePortrait) {
+        // Mobile portrait: scale to cover entire screen
+        const scaleX = this.scale.width / this.backgroundImage.width;
+        const scaleY = this.scale.height / this.backgroundImage.height;
+        const scale = Math.max(scaleX, scaleY);
+        this.backgroundImage.setScale(scale);
+      } else {
+        // Desktop/landscape: use original scaling
+        const bgScale = Math.max(this.scale.width / 800, this.scale.height / 600);
+        this.backgroundImage.setScale(bgScale);
+      }
+      
+      this.backgroundImage.setPosition(this.scale.width/2, this.scale.height/2);
+    }
+    
+    // Recreate the scene layout for new orientation
+    this.scene.restart();
+  }
+  
   createHighScoresTable() {
     // Destroy existing table if it exists
     if (this.highScoresTable) {
       this.highScoresTable.destroy();
     }
     
-    // Create new high scores table
-    const tableY = this.scale.height/2 + 200;
+    // Create new high scores table - responsive positioning
+    const isPortrait = this.scale.height > this.scale.width;
+    const tableY = isPortrait ? this.scale.height * 0.75 : this.scale.height/2 + 200;
     this.highScoresTable = createHighScoresTable(this, this.scale.width/2, tableY, this.highScoresSpeed);
     
     // Set depth for all elements
@@ -169,11 +231,15 @@ class MenuScene extends Phaser.Scene {
   setupMobileControls() {
     if (!this.inputManager.shouldUseMobileLayout()) return;
     
-    // Create direct Start Game button (primary action) with better margins
+    const isPortrait = this.scale.height > this.scale.width;
+    const menuTop = isPortrait ? this.scale.height * 0.35 : this.scale.height/2 - 100;
+    
+    // Create direct Start Game button (primary action) with responsive positioning
+    const startGameY = isPortrait ? menuTop + 50 : this.scale.height/2 - 60;
     this.mobileControls.createPrimaryButton(
       'startGame',
       this.scale.width/2,
-      this.scale.height/2 - 60, // Moved up for better spacing from other elements
+      startGameY,
       'START GAME',
       () => {
         this.registry.set('maxMult', this.maxMult);
@@ -182,12 +248,13 @@ class MenuScene extends Phaser.Scene {
       }
     );
     
-    // Create value adjustment buttons for max multiplier - positioned outside text
-    const maxMultTextWidth = 280; // Estimated width of "Max Multiplier: 12" text
+    // Create value adjustment buttons for max multiplier - positioned outside text with responsive width
+    const maxMultTextWidth = isPortrait ? 240 : 280;
+    const maxMultY = isPortrait ? menuTop + 120 : this.scale.height/2 + 10;
     this.mobileControls.createValueButtonsOutside(
       'maxMult', 
       this.scale.width/2, 
-      this.scale.height/2 + 10, 
+      maxMultY, 
       maxMultTextWidth,
       () => this.maxMult, // Getter function to get current value
       2, 
@@ -198,12 +265,13 @@ class MenuScene extends Phaser.Scene {
       }
     );
     
-    // Create value adjustment buttons for game speed - positioned outside text
-    const gameSpeedTextWidth = 280; // Increased from 220 to 280 to move buttons further out
+    // Create value adjustment buttons for game speed - positioned outside text with responsive width
+    const gameSpeedTextWidth = isPortrait ? 240 : 280;
+    const gameSpeedY = isPortrait ? menuTop + 170 : this.scale.height/2 + 60;
     this.mobileControls.createValueButtonsOutside(
       'gameSpeed', 
       this.scale.width/2, 
-      this.scale.height/2 + 60, 
+      gameSpeedY, 
       gameSpeedTextWidth,
       () => this.gameSpeed, // Getter function to get current value
       0, 
