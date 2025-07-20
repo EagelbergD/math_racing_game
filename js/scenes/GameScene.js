@@ -14,7 +14,7 @@ class GameScene extends Phaser.Scene {
     }
     
     this.maxMult = this.registry.get('maxMult') || 10;
-    this.selectedSpeed = this.registry.get('gameSpeed') || 2;
+    this.selectedSpeed = this.registry.get('gameSpeed') ?? 2;
     this.lives = 3;
     this.score = 0;
     this.speed = 150;
