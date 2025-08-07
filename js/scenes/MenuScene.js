@@ -129,7 +129,7 @@ class MenuScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
     
-    this.maxMultText = this.add.text(this.scale.width/2, maxMultY, `Max Multiplier: ${this.maxMult}`, {
+    this.maxMultText = this.add.text(this.scale.width/2, maxMultY, `Max First Number: ${this.maxMult}`, {
       fontSize: optionsFontSize,
       color: '#ffffff',
       fontStyle: 'bold'
@@ -473,8 +473,8 @@ class MenuScene extends Phaser.Scene {
       // Change values with left/right (desktop only)
       if (this.inputManager.isLeftJustPressed()) {
         if (this.currentOption === 1) { // Max Multiplier
-          this.maxMult = Math.max(2, this.maxMult - 1);
-          this.maxMultText.setText(`Max Multiplier: ${this.maxMult}`);
+                  this.maxMult = Math.max(2, this.maxMult - 1);
+        this.maxMultText.setText(`Max Multiplier: ${this.maxMult}`);
         } else if (this.currentOption === 2) { // Game Speed
           this.gameSpeed = Math.max(0, this.gameSpeed - 1);
           this.gameSpeedText.setText(`Game Speed: ${this.speedNames[this.gameSpeed]}`);
@@ -483,8 +483,8 @@ class MenuScene extends Phaser.Scene {
       
       if (this.inputManager.isRightJustPressed()) {
         if (this.currentOption === 1) { // Max Multiplier
-          this.maxMult = Math.min(12, this.maxMult + 1);
-          this.maxMultText.setText(`Max Multiplier: ${this.maxMult}`);
+                  this.maxMult = Math.min(12, this.maxMult + 1);
+        this.maxMultText.setText(`Max Multiplier: ${this.maxMult}`);
         } else if (this.currentOption === 2) { // Game Speed
           this.gameSpeed = Math.min(4, this.gameSpeed + 1);
           this.gameSpeedText.setText(`Game Speed: ${this.speedNames[this.gameSpeed]}`);

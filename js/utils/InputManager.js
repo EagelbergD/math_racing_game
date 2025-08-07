@@ -12,13 +12,15 @@ class InputManager {
       right: false,
       enter: false,
       escape: false,
+      space: false,
       justPressed: {
         up: false,
         down: false,
         left: false,
         right: false,
         enter: false,
-        escape: false
+        escape: false,
+        space: false
       }
     };
     
@@ -61,7 +63,8 @@ class InputManager {
       left: this.inputState.left,
       right: this.inputState.right,
       enter: this.inputState.enter,
-      escape: this.inputState.escape
+      escape: this.inputState.escape,
+      space: this.inputState.space
     };
     
     // Update current state from desktop input
@@ -79,7 +82,8 @@ class InputManager {
       left: this.inputState.left && !this.prevInputState.left,
       right: this.inputState.right && !this.prevInputState.right,
       enter: this.inputState.enter && !this.prevInputState.enter,
-      escape: this.inputState.escape && !this.prevInputState.escape
+      escape: this.inputState.escape && !this.prevInputState.escape,
+      space: this.inputState.space && !this.prevInputState.space
     };
   }
   
@@ -92,6 +96,7 @@ class InputManager {
     this.inputState.right = this.cursors.right.isDown || (this.wasdKeys.D && this.wasdKeys.D.isDown);
     this.inputState.enter = this.enterKey.isDown || (this.spaceKey && this.spaceKey.isDown);
     this.inputState.escape = this.escapeKey.isDown;
+    this.inputState.space = this.spaceKey.isDown;
   }
   
   updateMobileInput() {
@@ -104,6 +109,7 @@ class InputManager {
     this.inputState.right = this.inputState.right || mobileState.right;
     this.inputState.enter = this.inputState.enter || mobileState.enter;
     this.inputState.escape = this.inputState.escape || mobileState.escape;
+    this.inputState.space = this.inputState.space || mobileState.space;
   }
   
   // Convenience methods for common input checks
@@ -122,6 +128,7 @@ class InputManager {
   isRightPressed() { return this.isPressed('right'); }
   isEnterPressed() { return this.isPressed('enter'); }
   isEscapePressed() { return this.isPressed('escape'); }
+  isSpacePressed() { return this.isPressed('space'); }
   
   isUpJustPressed() { return this.isJustPressed('up'); }
   isDownJustPressed() { return this.isJustPressed('down'); }
@@ -129,6 +136,7 @@ class InputManager {
   isRightJustPressed() { return this.isJustPressed('right'); }
   isEnterJustPressed() { return this.isJustPressed('enter'); }
   isEscapeJustPressed() { return this.isJustPressed('escape'); }
+  isSpaceJustPressed() { return this.isJustPressed('space'); }
   
   // Get device info
   getDeviceInfo() {

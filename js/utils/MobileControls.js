@@ -505,6 +505,29 @@ class MobileControls {
       this.updateSliderValue(this.sliders[id], this.valueToPosition(this.sliders[id], value));
     }
   }
+
+  createFreezeButton() {
+    const safeArea = this.deviceInfo.safeArea;
+    const carButtonSize = this.buttonSize * 1.6; // Same size calculation as directional buttons
+    const freezeButtonSize = Math.min(this.scene.scale.width * 0.15, 70); // Slightly smaller than directional buttons
+    
+    // Position above the left directional button
+    const leftX = safeArea.left + carButtonSize/2 + 20; // Same X as left directional button
+    const buttonsY = this.scene.scale.height - safeArea.bottom - carButtonSize/2 - 40; // Same Y as directional buttons
+    const freezeY = buttonsY - carButtonSize * 0.7 - 20; // Position above left button with some spacing
+
+    const freezeButton = this.createPrimaryButton(
+      'freeze',
+      leftX, // Same X position as left button
+      freezeY, // Above the left button
+      '🧊',
+      () => {
+        this.scene.activateFreezeBomb();
+      }
+    );
+    
+    return freezeButton;
+  }
   
   // Cleanup
   destroy() {

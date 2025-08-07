@@ -25,6 +25,8 @@ class GameScene extends Phaser.Scene {
       this.gameSpeed = savedGameState.gameSpeed;
       this.maxMult = savedGameState.maxMult;
       this.selectedSpeed = savedGameState.selectedSpeed;
+      this.freezeBombs = savedGameState.freezeBombs !== undefined ? savedGameState.freezeBombs : 3;
+      this.isFrozen = savedGameState.isFrozen || false;
       // Clear the saved state
       this.registry.set('gameState', null);
     } else {
@@ -33,6 +35,8 @@ class GameScene extends Phaser.Scene {
       this.lives = 3;
       this.score = 0;
       this.speed = 150;
+      this.freezeBombs = 3;
+      this.isFrozen = false;
     }
     
     // Set game speed based on selection: 0=Very Slow, 1=Slow, 2=Normal, 3=Fast, 4=Very Fast
@@ -89,7 +93,9 @@ class GameScene extends Phaser.Scene {
       speed: this.speed,
       gameSpeed: this.gameSpeed,
       maxMult: this.maxMult,
-      selectedSpeed: this.selectedSpeed
+      selectedSpeed: this.selectedSpeed,
+      freezeBombs: this.freezeBombs,
+      isFrozen: this.isFrozen
     };
     
     // Store the state in registry
@@ -236,6 +242,13 @@ class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(1, 0).setDepth(11);
     
+    // Freeze bomb display
+    this.freezeBombText = this.add.text(30, (this.isPortrait ? 80 : 60) + safeAreaTop, `🧊 Bombs: ${this.freezeBombs}`, {
+        fontSize: statusFontSize,
+        color: '#00ffff',
+        fontStyle: 'bold'
+    }).setDepth(11);
+    
     // Instructions text - adapt based on device
     const instructionText = this.inputManager.shouldUseMobileLayout() 
       ? 'Use touch controls to change lanes'
@@ -265,6 +278,7 @@ class GameScene extends Phaser.Scene {
     
     // Create improved directional buttons for lane switching - positioned side by side in bottom left
     this.mobileControls.createGameDirectionalButtons();
+    this.mobileControls.createFreezeButton();
   }
   
   spawnDecoration() {
@@ -275,7 +289,17 @@ class GameScene extends Phaser.Scene {
     
     this.decorations.add(decoration);
     this.physics.world.enable(decoration);
-    decoration.body.setVelocityY(this.gameSpeed);
+    
+    // Set velocity based on freeze state
+    if (this.isFrozen) {
+      // If frozen, store the intended velocity and set actual velocity to 0
+      decoration.originalVelocityY = this.gameSpeed;
+      decoration.body.setVelocityY(0);
+    } else {
+      // Normal operation - set velocity immediately
+      decoration.body.setVelocityY(this.gameSpeed);
+    }
+    
     decoration.body.allowGravity = false;
     
     // Remove when off screen
@@ -303,8 +327,9 @@ class GameScene extends Phaser.Scene {
     this.clearAllCars();
     
     // Generate multiplication question
+    // Left operand: 1 to maxMult, Right operand: 1 to 9
     const a = Phaser.Math.Between(1, this.maxMult);
-    const b = Phaser.Math.Between(1, this.maxMult);
+    const b = Phaser.Math.Between(1, 9);
     this.correct = a * b;
     this.questionText.setText(`${a} × ${b} = ?`);
     
@@ -586,6 +611,38 @@ class GameScene extends Phaser.Scene {
     });
   }
   
+  activateFreezeBomb() {
+    if (this.freezeBombs > 0 && !this.isFrozen) {
+      this.freezeBombs--;
+      this.isFrozen = true;
+      this.freezeBombText.setText(`🧊 Bombs: ${this.freezeBombs}`);
+
+      // Freeze all decorative objects by storing their velocities and setting them to 0
+      this.decorations.children.entries.forEach(decoration => {
+        if (decoration.body) {
+          // Store original velocity to restore later
+          decoration.originalVelocityY = decoration.body.velocity.y;
+          decoration.body.setVelocityY(0);
+        }
+      });
+
+      // Visual effect for freeze
+      this.cameras.main.flash(500, 173, 216, 230, false); // Light blue flash
+
+      this.time.delayedCall(5000, () => {
+        this.isFrozen = false;
+        
+        // Restore decorative objects' movement
+        this.decorations.children.entries.forEach(decoration => {
+          if (decoration.body && decoration.originalVelocityY !== undefined) {
+            decoration.body.setVelocityY(decoration.originalVelocityY);
+            decoration.originalVelocityY = undefined; // Clean up
+          }
+        });
+      });
+    }
+  }
+
   showPauseMenu() {
     if (this.isPaused) return;
     
@@ -1323,24 +1380,33 @@ class GameScene extends Phaser.Scene {
       return;
     }
     
-    const bgStartTime = performance.now();
-    // Animate road background - move downward to simulate car moving forward (reduced frequency)
-    const bgSpeed = this.gameSpeed / 15; // Reduced from /10 to /15 for better performance
-    this.roadBg.tilePositionY -= bgSpeed;
-    this.grassBg.tilePositionY -= bgSpeed;
+    if (this.inputManager.isSpaceJustPressed()) {
+      this.activateFreezeBomb();
+    }
     
-    // Animate barriers and lane lines - also move downward (reduced frequency)
-    if (this.leftBarrier) this.leftBarrier.tilePositionY -= bgSpeed;
-    if (this.rightBarrier) this.rightBarrier.tilePositionY -= bgSpeed;
-    if (this.laneLine1) this.laneLine1.tilePositionY -= bgSpeed * 0.8;
-    if (this.laneLine2) this.laneLine2.tilePositionY -= bgSpeed * 0.8;
-    const bgEndTime = performance.now();
+    // Animate road and decorations only if not frozen
+    if (!this.isFrozen) {
+        const bgStartTime = performance.now();
+        // Animate road background - move downward to simulate car moving forward (reduced frequency)
+        const bgSpeed = this.gameSpeed / 15; // Reduced from /10 to /15 for better performance
+        this.roadBg.tilePositionY -= bgSpeed;
+        this.grassBg.tilePositionY -= bgSpeed;
+        
+        // Animate barriers and lane lines - also move downward (reduced frequency)
+        if (this.leftBarrier) this.leftBarrier.tilePositionY -= bgSpeed;
+        if (this.rightBarrier) this.rightBarrier.tilePositionY -= bgSpeed;
+        if (this.laneLine1) this.laneLine1.tilePositionY -= bgSpeed * 0.8;
+        if (this.laneLine2) this.laneLine2.tilePositionY -= bgSpeed * 0.8;
+        const bgEndTime = performance.now();
+    }
     
     const carStartTime = performance.now();
     // Update obstacle car positions (optimized)
     this.obstacleCars.children.entries.forEach((car, index) => {
-      // Manually move car down the screen
-      car.y += this.gameSpeed / 20;
+      // Manually move car down the screen only if not frozen
+      if (!this.isFrozen) {
+        car.y += this.gameSpeed / 20;
+      }
       
       // Update text position (only if text exists)
       if (car.answerText) {
@@ -1387,7 +1453,9 @@ class GameScene extends Phaser.Scene {
     if (DEBUG_MODE && Math.random() < 0.016) { // ~1/60 chance per frame
       console.log('Performance Profile:');
       console.log(`  Total update time: ${totalTime.toFixed(2)}ms`);
-      console.log(`  Background animation: ${(bgEndTime - bgStartTime).toFixed(2)}ms`);
+      if (!this.isFrozen) {
+        console.log(`  Background animation: ${(bgEndTime - bgStartTime).toFixed(2)}ms`);
+      }
       console.log(`  Car updates: ${(carEndTime - carStartTime).toFixed(2)}ms`);
       console.log(`  Input handling: ${(inputEndTime - inputStartTime).toFixed(2)}ms`);
       console.log(`  Cars count: ${this.obstacleCars.children.entries.length}`);
